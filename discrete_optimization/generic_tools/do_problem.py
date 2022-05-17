@@ -159,6 +159,15 @@ class Solution:
 class Problem:
     @abstractmethod
     def evaluate(self, variable: Solution) -> Dict[str, float]:
+        """Evaluate a given solution object for the given problem.
+
+        This method should return a dictionnary of KPI, that can be then used for mono or multiobjective optimization.
+        Args:
+            variable (Solution): the Solution object to evaluate.
+
+        Returns: Dictionnary of float kpi for the solution.
+
+        """
         ...
 
     def evaluate_mobj(self, variable: Solution) -> TupleFitness:

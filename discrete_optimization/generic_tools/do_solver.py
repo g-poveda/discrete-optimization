@@ -1,3 +1,5 @@
+"""Minimal API for a discrete-optimization solver."""
+
 from abc import abstractmethod
 
 from discrete_optimization.generic_tools.result_storage.result_storage import (

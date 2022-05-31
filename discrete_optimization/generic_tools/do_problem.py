@@ -1,5 +1,4 @@
-"""Base module for the problem implementation in discrete-optimization library.
-"""
+"""Base module for the problem implementation in discrete-optimization library."""
 from abc import abstractmethod
 from enum import Enum
 from typing import Any, Dict, Iterable, List
@@ -31,7 +30,7 @@ class TypeAttribute(Enum):
 
 
 class ModeOptim(Enum):
-    """Enum class to specify minimization or maximization problems. """
+    """Enum class to specify minimization or maximization problems."""
     MAXIMIZATION = 0
     MINIMIZATION = 1
 
@@ -40,10 +39,10 @@ class EncodingRegister:
     # TODO : force the structure of the dictionnary.
     """Placeholder class where the Solution definition is defined.
 
-
     Attributes:
         dict_attribute_to_type (Dict[str, Any]): specifies the encoding of a solution object.
         User may refer to example in the different implemented problem definition.
+
     Examples:
         in ColoringModel, to specify the colors attribute of the Solution, you will do the following.
         dict_register = {
@@ -62,7 +61,6 @@ class EncodingRegister:
 
     def get_types(self) -> List[TypeAttribute]:
         """Returns all the TypeAttribute that are present in our encoding."""
-
         return [
             t
             for k in self.dict_attribute_to_type
@@ -140,7 +138,7 @@ class ObjectiveHandling(Enum):
 
 
 class TypeObjective(Enum):
-    """Enum class to specify how should each KPI are """
+    """Enum class to specify what should each KPI are."""
     OBJECTIVE = 0
     PENALTY = 1
 
@@ -163,6 +161,7 @@ class ObjectiveRegister:
             "nb_colors": {"type": TypeObjective.OBJECTIVE, "default_weight": -1},
             "nb_violations": {"type": TypeObjective.PENALTY, "default_weight": -100},
         }
+
     Attributes
         objective_sense (ModeOptim): min or max problem
         objective_handling (ObjectiveHandling): specify how the different kpi are transformed into an optimization criteria
@@ -185,6 +184,10 @@ class ObjectiveRegister:
         self.dict_objective_to_doc = dict_objective_to_doc
 
     def get_list_objective_and_default_weight(self):
+        """Flatten the list of kpi names and default weight.
+
+        Returns: list of kpi names, list of default weight for the aggregated objective function.
+        """
         d = [
             (k, self.dict_objective_to_doc[k]["default_weight"])
             for k in self.dict_objective_to_doc
@@ -202,7 +205,7 @@ class ObjectiveRegister:
 class Solution:
     """Base class for a solution to a Problem."""
     @abstractmethod
-    def copy(self):
+    def copy(self) -> "Solution":
         """Deep copy of the solution.
 
         The copy() function should return a new object containing the same input as the current object,
@@ -214,10 +217,25 @@ class Solution:
         """
         ...
 
-    def lazy_copy(self):
+    def lazy_copy(self) -> "Solution":
+        """This function should return a new object but possibly with mutable attributes from the original objects.
+
+        A typical use of lazy copy is in evolutionary algorithms or genetic algorithm where the use of
+        local move don't need to do a possibly costly deepcopy.
+
+        Returns (Solution): copy (possibly shallow) of the Solution
+
+        """
         return self.copy()
 
     def get_attribute_register(self, problem: "Problem") -> EncodingRegister:
+        """Returns how the Solution is encoded for the Problem.
+
+        By default it returns the encoding register of the problem itself. However it can make sense that for the same
+        Problem, you have different Solution class with different encoding.
+
+        Returns (EncodingRegister): content of the encoding of the Solution.
+        """
         return problem.get_attribute_register()
 
     @abstractmethod
@@ -236,11 +254,13 @@ class Solution:
 
 
 class Problem:
+    """Base class for a discrete optimization problem."""
     @abstractmethod
     def evaluate(self, variable: Solution) -> Dict[str, float]:
         """Evaluate a given solution object for the given problem.
 
         This method should return a dictionnary of KPI, that can be then used for mono or multiobjective optimization.
+
         Args:
             variable (Solution): the Solution object to evaluate.
 
@@ -254,10 +274,11 @@ class Problem:
 
         It consists in flattening the evaluate() function and put in an array.
         User should probably custom this to be more efficient.
+
         Args:
             variable (Solution): the Solution object to evaluate.
 
-        Returns:
+        Returns (TupleFitness): a flattened tuple fitness object representing the multi-objective criteria.
 
         """
         obj_register = self.get_objective_register()
@@ -266,14 +287,15 @@ class Problem:
         return TupleFitness(np.array([dict_values[k] for k in keys]), len(keys))
 
     def evaluate_mobj_from_dict(self, dict_values: Dict[str, float]):
-        """Return an multiobjective fitness from a dictionnary of kpi (output of evaluate function)
+        """Return an multiobjective fitness from a dictionnary of kpi (output of evaluate function).
 
         It consists in flattening the evaluate() function and put in an array.
         User should probably custom this to be more efficient.
+
         Args:
             dict_values: output of evaluate() function
 
-        Returns:
+        Returns (TupleFitness): a flattened tuple fitness object representing the multi-objective criteria.
 
         """
         # output of evaluate(solution) typically
@@ -297,7 +319,6 @@ class Problem:
         """Returns how the Solution should be encoded.
 
         Returns (EncodingRegister): content of the encoding of the solution
-
         """
         ...
 
@@ -490,7 +511,7 @@ def get_default_objective_setup(problem: Problem) -> ParamsObjectiveFunction:
     """Build ParamsObjectiveFunction from the ObjectiveRegister returned by the problem.
 
     Args:
-        problem (Problem)
+        problem (Problem): problem to build objective setup
 
     Returns: default ParamsObjectiveFunction of the problem.
 
@@ -542,12 +563,14 @@ def build_evaluate_function_aggregated(
     (output of Problem.evaluate function) for the second one. Those two eval function will return either a scalar for
     monoobjective problem or a TupleFitness for multiobjective.
     those aggregated function will be the one actually called by an optimisation algorithm at the end.
+
     Args:
         problem (Problem): problem to build the evaluation function s
         params_objective_function (ParamsObjectiveFunction): params of the objective function.
 
-    Returns:
-
+    Returns: the function returns a 2-uple :
+                    -first element is a function of Solution->Union[float,TupleFitness]
+                    -second element is a function of (Dict[str,float])->Union[float, TupleFitness]
     """
     if params_objective_function is None:
         params_objective_function = get_default_objective_setup(problem)

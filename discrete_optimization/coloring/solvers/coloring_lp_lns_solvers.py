@@ -1,6 +1,7 @@
+"""Large neighborhood search + Linear programming toolbox for coloring problem."""
 import random
 from enum import Enum
-from typing import Any, Iterable
+from typing import Dict
 
 from discrete_optimization.coloring.coloring_model import ColoringProblem
 from discrete_optimization.coloring.solvers.coloring_lp_solvers import (
@@ -27,7 +28,15 @@ class InitialColoringMethod(Enum):
     GREEDY = 1
 
 
+# TODO : remove redundancy with the identical class in coloring_cp_lns_solvers.
 class InitialColoring(InitialSolution):
+    """Initial solution provider for lns algorithm.
+
+    Attributes:
+        problem (ColoringProblem): input coloring problem
+        initial_method (InitialColoringMethod): the method to use to provide the initial solution.
+    """
+
     def __init__(
         self,
         problem: ColoringProblem,
@@ -62,13 +71,22 @@ class InitialColoring(InitialSolution):
 
 
 class ConstraintHandlerFixColorsGrb(ConstraintHandler):
+    """Constraint builder used in LNS+LP (using gurobi solver) for coloring problem.
+
+    This constraint handler is pretty basic, it fixes a fraction_to_fix proportion of nodes color.
+
+    Attributes:
+        problem (ColoringProblem): input coloring problem
+        fraction_to_fix (float): float between 0 and 1, representing the proportion of nodes to constrain.
+    """
+
     def __init__(self, problem: ColoringProblem, fraction_to_fix: float = 0.9):
         self.problem = problem
         self.fraction_to_fix = fraction_to_fix
 
     def adding_constraint_from_results_store(
         self, milp_solver: ColoringLP, result_storage: ResultStorage
-    ) -> Iterable[Any]:
+    ) -> Dict:
         subpart_color = set(
             random.sample(
                 milp_solver.nodes_name,
@@ -108,7 +126,7 @@ class ConstraintHandlerFixColorsGrb(ConstraintHandler):
         return lns_constraint
 
     def remove_constraints_from_previous_iteration(
-        self, milp_solver: ColoringLP, previous_constraints: Iterable[Any]
+        self, milp_solver: ColoringLP, previous_constraints: Dict
     ):
         for k in previous_constraints:
             milp_solver.model.remove(previous_constraints[k])
@@ -116,13 +134,22 @@ class ConstraintHandlerFixColorsGrb(ConstraintHandler):
 
 
 class ConstraintHandlerFixColorsPyMip(ConstraintHandler):
+    """Constraint builder used in LNS+ LP (using pymip library) for coloring problem.
+
+    This constraint handler is pretty basic, it fixes a fraction_to_fix proportion of nodes color.
+
+    Attributes:
+        problem (ColoringProblem): input coloring problem
+        fraction_to_fix (float): float between 0 and 1, representing the proportion of nodes to constrain.
+    """
+
     def __init__(self, problem: ColoringProblem, fraction_to_fix: float = 0.9):
         self.problem = problem
         self.fraction_to_fix = fraction_to_fix
 
     def adding_constraint_from_results_store(
         self, milp_solver: ColoringLP_MIP, result_storage: ResultStorage
-    ) -> Iterable[Any]:
+    ) -> Dict:
         subpart_color = set(
             random.sample(
                 milp_solver.nodes_name,
@@ -164,7 +191,7 @@ class ConstraintHandlerFixColorsPyMip(ConstraintHandler):
         return lns_constraint
 
     def remove_constraints_from_previous_iteration(
-        self, milp_solver: ColoringLP_MIP, previous_constraints: Iterable[Any]
+        self, milp_solver: ColoringLP_MIP, previous_constraints: Dict
     ):
         milp_solver.model.remove(
             [previous_constraints[k] for k in previous_constraints]

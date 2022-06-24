@@ -1,3 +1,5 @@
+"""Utility module to launch different solvers on the coloring problem."""
+
 from discrete_optimization.coloring.solvers.coloring_cp_solvers import (
     ColoringCP,
     ColoringCPModel,
@@ -67,9 +69,9 @@ for x in solvers:
 def look_for_solver(domain):
     class_domain = domain.__class__
     available = []
-    for solver in solvers_compatibility:
-        if class_domain in solvers_compatibility[solver]:
-            available += [solver]
+    for solver_ in solvers_compatibility:
+        if class_domain in solvers_compatibility[solver_]:
+            available += [solver_]
     print("You have ", len(available), " solvers for your domain ")
     print([solvers_map[a] for a in available])
     return available
@@ -77,27 +79,27 @@ def look_for_solver(domain):
 
 def look_for_solver_class(class_domain):
     available = []
-    for solver in solvers_compatibility:
-        if class_domain in solvers_compatibility[solver]:
-            available += [solver]
+    for solver_ in solvers_compatibility:
+        if class_domain in solvers_compatibility[solver_]:
+            available += [solver_]
     print("You have ", len(available), " solvers for your domain ")
     print([solvers_map[a] for a in available])
     return available
 
 
 def solve(method, coloring_model: ColoringProblem, **args) -> ResultStorage:
-    solver = method(coloring_model, **args)
+    solver_ = method(coloring_model, **args)
     try:
-        solver.init_model(**args)
-    except:
+        solver_.init_model(**args)
+    except AttributeError:
         pass
-    return solver.solve(**args)
+    return solver_.solve(**args)
 
 
 def return_solver(method, coloring_model: ColoringProblem, **args) -> ResultStorage:
-    solver = method(coloring_model, **args)
+    solver_ = method(coloring_model, **args)
     try:
-        solver.init_model(**args)
-    except:
+        solver_.init_model(**args)
+    except AttributeError:
         pass
-    return solver
+    return solver_

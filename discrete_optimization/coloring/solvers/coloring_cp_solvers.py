@@ -1,8 +1,14 @@
+"""Module containing Constraint Programming based solver for Coloring Problem.
+
+CP formulation rely on minizinc models stored in coloring/minizinc folder.
+"""
+
 import os
 import random
 from dataclasses import InitVar
 from datetime import timedelta
 from enum import Enum
+from typing import Any, Dict, Union
 
 import networkx as nx
 import pymzn
@@ -35,7 +41,7 @@ path_minizinc = os.path.abspath(
 )
 
 
-class ColotingCPSolution:
+class ColoringCPSolution:
     objective: int
     __output_item: InitVar[str] = None
 
@@ -77,8 +83,9 @@ class ColoringCP(CPSolver):
         self.index_nodes_name = self.coloring_problem.index_nodes_name
         self.index_to_nodes_name = self.coloring_problem.index_to_nodes_name
         self.graph = self.coloring_problem.graph
-        self.model: Model = None
-        self.instance: Instance = None
+        self.model: Union[Model, None] = None
+        self.instance: Union[Instance, None] = None
+        self.dict_datas: Union[Dict[str, Any], None] = None
         self.custom_output_type = False
         self.g = None
         (
@@ -92,6 +99,21 @@ class ColoringCP(CPSolver):
         self.cp_solver_name = cp_solver_name
 
     def init_model(self, **kwargs):
+        """Instantiate a minizinc model with the coloring problem data.
+
+        Keyword Args:
+            nb_colors (int): upper bound of number of colors to be considered by the model.
+            object_output (bool): specify if the solution are returned in a ColoringCPSolution object
+                                  or native minizinc output.
+            include_seq_chain_constraint (bool) : include the value_precede_chain in the minizinc model.
+                        See documentation of minizinc for the specification of this global constraint.
+            cp_model (ColoringCPModel): CP model version.
+            max_cliques (int): if cp_model == ColoringCPModel.CLIQUES, specify the max number of cliques to include
+                               in the model.
+
+
+        Returns: None
+        """
         nb_colors = kwargs.get("nb_colors", None)
         object_output = kwargs.get("object_output", True)
         include_seq_chain_constraint = kwargs.get("include_seq_chain_constraint", False)
@@ -102,7 +124,7 @@ class ColoringCP(CPSolver):
         path = os.path.join(path_minizinc, file_dict[model_type])
         self.model = Model(path)
         if object_output:
-            self.model.output_type = ColotingCPSolution
+            self.model.output_type = ColoringCPSolution
             self.custom_output_type = True
         solver = Solver.lookup(map_cp_solver_name[self.cp_solver_name])
         instance = Instance(solver, self.model)
@@ -135,6 +157,15 @@ class ColoringCP(CPSolver):
         self.dict_datas = {k: instance[k] for k in keys}
 
     def export_dzn(self, file_name: str = None, keys=None):
+        """[DEBUG utility] Export the instantiated data into a dzn for potential debugs without python.
+
+        Args:
+            file_name (str): file path where to dump the data file
+            keys (List[str]): list of input data names to dump.
+
+        Returns: None
+
+        """
         if file_name is None:
             file_name = os.path.join(path_minizinc, "coloring_example_dzn.dzn")
         if keys is None:
@@ -146,8 +177,10 @@ class ColoringCP(CPSolver):
         print("Successfully dumped data file ", file_name)
 
     def retrieve_solutions(
-        self, result, parameters_cp: ParametersCP = ParametersCP.default()
+        self, result, parameters_cp: ParametersCP = None
     ) -> ResultStorage:
+        if parameters_cp is None:
+            parameters_cp = ParametersCP.default()
         intermediate_solutions = parameters_cp.intermediate_solution
         colors = []
         objectives = []
@@ -291,7 +324,7 @@ class ColoringCP(CPSolver):
                 else:
                     try:
                         print(iteration, " : found solution ", nb_color)
-                    except:
+                    except Exception:
                         print(iteration, " failed ")
                 iteration += 1
         fit = self.coloring_problem.evaluate(current_best_solution)

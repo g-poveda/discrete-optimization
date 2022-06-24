@@ -1,3 +1,4 @@
+"""Large neighborhood search + Constraint programming toolbox for coloring problem."""
 import random
 from enum import Enum
 from typing import Any, Iterable
@@ -31,6 +32,13 @@ class InitialColoringMethod(Enum):
 
 
 class InitialColoring(InitialSolution):
+    """Initial solution provider for lns algorithm.
+
+    Attributes:
+        problem (ColoringProblem): input coloring problem
+        initial_method (InitialColoringMethod): the method to use to provide the initial solution.
+    """
+
     def __init__(
         self,
         problem: ColoringProblem,
@@ -65,6 +73,15 @@ class InitialColoring(InitialSolution):
 
 
 class ConstraintHandlerFixColorsCP(ConstraintHandler):
+    """Constraint builder for LNS coloring problem.
+
+    This constraint handler is pretty basic, it fixes a fraction_to_fix proportion of nodes color.
+
+    Attributes:
+        problem (ColoringProblem): input coloring problem
+        fraction_to_fix (float): float between 0 and 1, representing the proportion of nodes to constrain.
+    """
+
     def __init__(self, problem: ColoringProblem, fraction_to_fix: float = 0.9):
         self.problem = problem
         self.fraction_to_fix = fraction_to_fix
@@ -109,6 +126,7 @@ class ConstraintHandlerFixColorsCP(ConstraintHandler):
                 + str(current_nb_color)
                 + ";\n"
             )
+        return []
 
 
 class PostProcessSolutionColoring(PostProcessSolution):

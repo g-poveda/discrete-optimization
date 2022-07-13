@@ -8,7 +8,7 @@ import random
 from dataclasses import InitVar
 from datetime import timedelta
 from enum import Enum
-from typing import Any, Dict, Union
+from typing import Any, Dict, Union, Tuple
 
 import networkx as nx
 import pymzn
@@ -76,6 +76,14 @@ class ColoringCP(CPSolver):
         cp_solver_name: CPSolverName = CPSolverName.CHUFFED,
         **args,
     ):
+        """CP solver linked with minizinc implementation of coloring problem.
+
+        Args:
+            coloring_problem (ColoringProblem): coloring problem instance to solve
+            params_objective_function (ParamsObjectiveFunction): params of the objective function
+            cp_solver_name (CPSolverName): backend solver to use with minizinc
+            **args:
+        """
         self.coloring_problem = coloring_problem
         self.number_of_nodes = self.coloring_problem.number_of_nodes
         self.number_of_edges = len(self.coloring_problem.graph.edges_infos_dict)
@@ -179,6 +187,15 @@ class ColoringCP(CPSolver):
     def retrieve_solutions(
         self, result, parameters_cp: ParametersCP = None
     ) -> ResultStorage:
+        """Retrieve the solution found by solving the minizinc instance
+
+        Args:
+            result: result of solve() call on minizinc instance
+            parameters_cp (ParametersCP): parameters of the cp solving, to specify notably how much solution is expected.
+
+        Returns (ResultStorage): result object storing the solutions found by the CP solver.
+
+        """
         if parameters_cp is None:
             parameters_cp = ParametersCP.default()
         intermediate_solutions = parameters_cp.intermediate_solution
@@ -216,6 +233,15 @@ class ColoringCP(CPSolver):
         )
 
     def solve(self, parameters_cp: ParametersCP = None, **kwargs) -> ResultStorage:
+        """Solve the cp model and returns the solution storage
+
+        Args:
+            parameters_cp (ParametersCP): parameters of the cp solver to use
+            **kwargs: additional parameters to pass to init_model
+
+        Returns (ResultStorage): result storage object containing solutions
+
+        """
         if parameters_cp is None:
             parameters_cp = ParametersCP.default()
         if self.model is None:
@@ -235,7 +261,18 @@ class ColoringCP(CPSolver):
             print(result.statistics)
         return self.retrieve_solutions(result=result, parameters_cp=parameters_cp)
 
+    @deprecated(deprecated_in="0.1", details="Use rather initial solution provider utilities")
     def get_solution(self, **kwargs):
+        """[Deprecated] Used by the solve_lns method to provide a greedy first solution
+
+        Keyword Args:
+            greedy_start (bool): use heuristics (based on networkx) to compute starting solution, otherwise the
+                          dummy method is used.
+            verbose (bool): verbose option.
+
+        Returns (ColoringSolution): a starting coloring solution that can be used by lns.
+
+        """
         greedy_start = kwargs.get("greedy_start", True)
         verbose = kwargs.get("verbose", False)
         if greedy_start:
@@ -263,7 +300,18 @@ class ColoringCP(CPSolver):
         nb_iteration: int = 10,
         parameters_cp: ParametersCP = None,
         **kwargs,
-    ):
+    ) -> Tuple[ColoringSolution, Dict]:
+        """Run a customized LNS for coloring problem.
+
+        Args:
+            fraction_to_fix (float): fraction of color to fix in each iteration of LNS
+            nb_iteration (int): number of iteration of LNS to run
+            parameters_cp (ParametersCP): parameters of the cp solver
+            **kwargs:
+
+        Returns: the best coloring solution and its evaluation.
+
+        """
         if parameters_cp is None:
             parameters_cp = ParametersCP.default()
         first_solution = self.get_solution(**kwargs)

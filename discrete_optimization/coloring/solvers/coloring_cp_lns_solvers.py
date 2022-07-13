@@ -56,6 +56,10 @@ class InitialColoring(InitialSolution):
         )
 
     def get_starting_solution(self) -> ResultStorage:
+        """Compute initial solution via greedy methods.
+
+        Returns: initial solution storage
+        """
         if self.initial_method == InitialColoringMethod.DUMMY:
             sol = self.problem.get_dummy_solution()
             fit = self.aggreg_sol(sol)
@@ -98,6 +102,17 @@ class ConstraintHandlerFixColorsCP(ConstraintHandler):
         result_storage: ResultStorage,
         last_result_store: ResultStorage,
     ) -> Iterable[Any]:
+        """Include constraint that fix decision on a subset of nodes, according to current solutions found.
+
+        Args:
+            cp_solver (CPSolver): a coloring CPSolver
+            child_instance: minizinc instance where to include the constraint
+            result_storage: current pool of solutions
+            last_result_store: pool of solutions found in previous LNS iteration (optional)
+
+        Returns: an empty list, unused.
+
+        """
         range_node = range(1, self.problem.number_of_nodes + 1)
         current_solution = result_storage.get_best_solution()
         subpart_color = set(
@@ -130,6 +145,14 @@ class ConstraintHandlerFixColorsCP(ConstraintHandler):
 
 
 class PostProcessSolutionColoring(PostProcessSolution):
+    """Post process class for coloring problem.
+
+     It transforms the color vector to have colors between 0 and nb_colors-1
+
+    Attributes:
+        problem (ColoringProblem): coloring instance
+        params_objective_function (ParamsObjectiveFunction): params of the objective function
+    """
     def __init__(
         self,
         problem: ColoringProblem,

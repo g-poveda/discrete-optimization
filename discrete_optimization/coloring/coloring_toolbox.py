@@ -1,7 +1,8 @@
 import networkx as nx
+from typing import Tuple, List, Hashable
 
 
-def compute_cliques(g: nx.Graph, nb_max=None):
+def compute_cliques(g: nx.Graph, nb_max=None) -> Tuple[List[List[Hashable]], bool]:
     """Compute nb_max cliques for a given graph (possibly a graph from a coloring model).
 
     A clique of a graph is a subset of nodes that are all adjacent to each other.
@@ -12,7 +13,7 @@ def compute_cliques(g: nx.Graph, nb_max=None):
         g: a network x Graph
         nb_max: max number of cliques to return.
 
-    Returns: A list of cliques
+    Returns: A list of cliques and a boolean indicating if all cliques have been computed.
 
     """
     cliques = []

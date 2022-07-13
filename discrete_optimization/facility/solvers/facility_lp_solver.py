@@ -1,8 +1,10 @@
+"""Linear programming models and solve functions for facility location problem."""
 import random
-from typing import Iterable
+from typing import Iterable, Tuple
 
 import mip
 import numpy as np
+from deprecation import deprecated
 from ortools.linear_solver import pywraplp
 
 from discrete_optimization.facility.facility_model import (
@@ -34,7 +36,17 @@ else:
     from gurobipy import GRB, LinExpr, Model, quicksum
 
 
-def compute_length_matrix(facility_problem: FacilityProblem):
+def compute_length_matrix(facility_problem: FacilityProblem) -> Tuple[np.array, np.array, np.array]:
+    """Precompute all the cost of allocation in a matrix form.
+
+    A matrix "closest" is also computed, sorting for each customers the facility by distance.
+
+    Args:
+        facility_problem (FacilityProblem): facility problem instance to compute cost matrix
+
+    Returns: setup cost vector, sorted matrix distance, matrix distance
+
+    """
     facilities = facility_problem.facilities
     customers = facility_problem.customers
     nb_facilities = len(facilities)
@@ -52,7 +64,22 @@ def compute_length_matrix(facility_problem: FacilityProblem):
 
 def prune_search_space(
     facility_problem: FacilityProblem, n_cheapest: int = 10, n_shortest=10
-):
+) -> Tuple[np.array, np.array]:
+    """Utility function that can prune the search space.
+
+    Output of this function will be used to :
+    - consider only the n_cheapest facility that has the cheapest setup_cost
+    - consider only the n_shortest (closest actually) facilities for each customers
+
+
+    Args:
+        facility_problem (FacilityProblem): facility problem instance
+        n_cheapest (int): select the cheapest setup cost facilities
+        n_shortest (int): for each customer, select the closest facilities
+
+    Returns: tuple of matrix, first element is a matrix (facility_count, customer_count) with 2 as value
+    when we should consider the allocation possible. Second element in the (facility,customer) matrix distance.
+    """
     costs, closest, matrix_distance = compute_length_matrix(facility_problem)
     sorted_costs = np.argsort(costs)
     facilities = facility_problem.facilities
@@ -67,6 +94,13 @@ def prune_search_space(
 
 
 class LP_Facility_Solver(MilpSolver):
+    """milp modelling and solving using gurobi library
+
+    Attributes:
+        coloring_problem (FacilityProblem): facility problem instance to solve
+        params_objective_function (ParamsObjectiveFunction): objective function parameters
+                        (however this is just used for the ResultStorage creation, not in the optimisation)
+    """
     def __init__(
         self,
         facility_problem: FacilityProblem,
@@ -89,6 +123,16 @@ class LP_Facility_Solver(MilpSolver):
         )
 
     def init_model(self, **kwargs):
+        """
+
+        Keyword Args:
+            use_matrix_indicator_heuristic (bool): use the prune search method to reduce number of variable.
+            n_shortest (int): parameter for the prune search method
+            n_cheapest (int): parameter for the prune search method
+
+        Returns: None
+
+        """
         nb_facilities = self.facility_problem.facility_count
         nb_customers = self.facility_problem.customer_count
         use_matrix_indicator_heuristic = kwargs.get(
@@ -214,7 +258,18 @@ class LP_Facility_Solver(MilpSolver):
         else:
             return self.retrieve_solutions([0])
 
-    def fix_decision_fo_customer(self, current_solution, fraction_to_fix: float = 0.9):
+    @deprecated(deprecated_in="0.1", details="Use rather the generic LNS-CP function.")
+    def fix_decision_fo_customer(self, current_solution: FacilitySolution, fraction_to_fix: float = 0.9):
+        """Constraint the gurobi model to current solution with a floet fraction_to_fix.
+        It can be used in a LNS framework.
+
+        Args:
+            current_solution (FacilitySolution): current facility solution to build constraints from
+            fraction_to_fix (float): (0.<1.) fraction of variable to fix
+
+        Returns:
+
+        """
         subpart_customer = set(
             random.sample(
                 range(self.facility_problem.customer_count),
@@ -260,15 +315,18 @@ class LP_Facility_Solver(MilpSolver):
                         pass
         self.constraints_dict["lns"] = lns_constraint
 
+    @deprecated(deprecated_in="0.1", details="Use rather the generic LNS-CP function.")
     def fix_decision(
         self, current_solution: FacilitySolution, fraction_to_fix: float = 0.9
     ):
         self.fix_decision_fo_customer(current_solution, fraction_to_fix)
 
+    @deprecated(deprecated_in="0.1", details="Use rather the generic LNS-CP function.")
     def remove_lns_constraint(self):
         for k in self.constraints_dict["lns"]:
             self.model.remove(self.constraints_dict["lns"][k])
 
+    @deprecated(deprecated_in="0.1", details="Use rather the generic LNS-CP function.")
     def solve_lns(
         self,
         fraction_to_fix_first_iter: float = 0.0,
@@ -276,6 +334,17 @@ class LP_Facility_Solver(MilpSolver):
         nb_iteration: int = 10,
         **kwargs
     ):
+        """Run a customized LNS+LP for facility problem.
+
+        Args:
+            fraction_to_fix (float): fraction of allocation to fix in each iteration of LNS
+            nb_iteration (int): number of iteration of LNS to run
+            parameters_cp (ParametersCP): parameters of the cp solver
+            **kwargs:
+
+        Returns: the best coloring solution and its evaluation.
+
+        """
         if self.model is None:
             print("Initialize the model")
             self.init_model(**kwargs)
@@ -308,6 +377,8 @@ class LP_Facility_Solver(MilpSolver):
 
 
 class LP_Facility_Solver_CBC(SolverDO):
+    """Milp formulation using cbc solver.
+    """
     def __init__(
         self,
         facility_problem: FacilityProblem,
@@ -534,6 +605,8 @@ class LP_Facility_Solver_CBC(SolverDO):
 
 
 class LP_Facility_Solver_PyMip(LP_Facility_Solver):
+    """Milp formulation using pymip library (gurobi or cbc available backends).
+    """
     def __init__(
         self,
         facility_problem: FacilityProblem,

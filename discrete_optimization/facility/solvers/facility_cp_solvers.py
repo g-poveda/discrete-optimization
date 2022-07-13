@@ -1,8 +1,10 @@
 import os
+from deprecation import deprecated
 import random
 from dataclasses import InitVar
 from datetime import timedelta
 from enum import Enum
+from typing import Union
 
 from minizinc import Instance, Model, Solver
 
@@ -62,6 +64,14 @@ class FacilitySolCP:
 
 
 class FacilityCP(SolverDO):
+    """CP solver linked with minizinc implementation of coloring problem.
+
+    Attributes:
+        facility_problem (FacilityProblem): facility problem instance to solve
+        params_objective_function (ParamsObjectiveFunction): params of the objective function
+        cp_solver_name (CPSolverName): backend solver to use with minizinc
+        **args: unused
+    """
     def __init__(
         self,
         facility_problem: FacilityProblem,
@@ -85,10 +95,20 @@ class FacilityCP(SolverDO):
             params_objective_function=params_objective_function,
         )
         self.model = None
-        self.instance: Instance = None
+        self.instance: Union[None, Instance] = None
         self.custom_output_type = False
 
     def init_model(self, **kwargs):
+        """Initialise the minizinc instance to solve for a given instance.
+
+        Keyword Args:
+            cp_model (FacilityCPModel): CP model version
+            object_output (bool): specify if the solution are returned in a FacilitySolCP object
+                                  or native minizinc output.
+
+        Returns: None
+
+        """
         model_type = kwargs.get("cp_model", FacilityCPModel.DEFAULT_INT)
         object_output = kwargs.get("object_output", True)
         path = os.path.join(path_minizinc, file_dict[model_type])
@@ -177,6 +197,7 @@ class FacilityCP(SolverDO):
         )
         return self.retrieve_solutions(result=result, parameters_cp=parameters_cp)
 
+    @deprecated(deprecated_in="0.1", details="Use rather initial solution provider utilities")
     def get_solution(self, **kwargs):
         greedy_start = kwargs.get("greedy_start", True)
         verbose = kwargs.get("verbose", False)
@@ -193,6 +214,7 @@ class FacilityCP(SolverDO):
         print("Greedy Done")
         return solution
 
+    @deprecated(deprecated_in="0.1", details="Use rather the generic LNS-CP function.")
     def solve_lns(self, fraction_to_fix: float = 0.9, nb_iteration: int = 10, **kwargs):
         first_solution = self.get_solution(**kwargs)
         dict_color = {

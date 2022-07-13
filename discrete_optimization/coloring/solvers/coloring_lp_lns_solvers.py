@@ -28,7 +28,6 @@ class InitialColoringMethod(Enum):
     GREEDY = 1
 
 
-# TODO : remove redundancy with the identical class in coloring_cp_lns_solvers.
 class InitialColoring(InitialSolution):
     """Initial solution provider for lns algorithm.
 

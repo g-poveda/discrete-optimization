@@ -412,6 +412,8 @@ class LPKnapsack(MilpSolver):
         if self.model is None:
             self.init_model(**args)
         print("optimizing...")
+        self.model.max_mip_gap = parameters_milp.MIPGap
+        self.model.max_mip_gap_abs = parameters_milp.MIPGapAbs
         self.model.optimize(
             max_seconds=parameters_milp.TimeLimit,
             max_solutions=parameters_milp.PoolSolutions,

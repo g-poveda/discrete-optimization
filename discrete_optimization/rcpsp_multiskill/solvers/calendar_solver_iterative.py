@@ -608,7 +608,7 @@ class SolverWithCalendarIterative(SolverDO):
                             intermediate_solutions=parameters_cp.intermediate_solution,
                         )
                     result_store = self.cp_solver.retrieve_solutions(
-                        result, parameters_cp=parameters_cp
+                        result, parameters_cp=parameters_cp, time_presolve=None
                     )
                     logger.debug(f"iteration n°{iteration} Solved !!!")
                     logger.debug(result.status)

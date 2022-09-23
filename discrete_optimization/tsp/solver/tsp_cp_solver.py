@@ -88,7 +88,9 @@ class TSP_CP_Solver(MinizincCPSolver):
         instance["end"] = self.end_index + 1
         self.instance = instance
 
-    def retrieve_solutions(self, result, parameters_cp: ParametersCP) -> ResultStorage:
+    def retrieve_solutions(
+        self, result, parameters_cp: ParametersCP, time_presolve=None
+    ) -> ResultStorage:
         intermediate_solutions = parameters_cp.intermediate_solution
         solutions_fit: List[Tuple[Solution, fitness_class]] = []
         if intermediate_solutions:

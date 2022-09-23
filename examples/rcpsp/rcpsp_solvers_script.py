@@ -5,8 +5,10 @@
 import gc
 import time
 
+from discrete_optimization.generic_tools.cp_tools import CPSolverName, ParametersCP
 from discrete_optimization.rcpsp.rcpsp_parser import get_data_available, parse_file
 from discrete_optimization.rcpsp.rcpsp_solvers import (
+    CP_RCPSP_MZN,
     RCPSPModel,
     look_for_solver,
     solve,
@@ -76,5 +78,16 @@ def script_choose_solver():
             print(solution.get_best_solution())
 
 
+def example_cp_solver():
+    files = get_data_available()
+    files = [f for f in files if "j1201_1.sm" in f]  # Single mode RCPSP
+    file_path = files[0]
+    rcpsp_model: RCPSPModel = parse_file(file_path)
+    solver = CP_RCPSP_MZN(rcpsp_model=rcpsp_model, cp_solver_name=CPSolverName.CHUFFED)
+    params_cp = ParametersCP.default()
+    solver.init_model(output_type=False)
+    solver.solve(parameters_cp=params_cp)
+
+
 if __name__ == "__main__":
-    script_choose_solver()
+    example_cp_solver()

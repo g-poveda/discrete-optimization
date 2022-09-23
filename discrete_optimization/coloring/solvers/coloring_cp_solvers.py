@@ -194,7 +194,9 @@ class ColoringCP(MinizincCPSolver):
         )
         logger.info(f"Successfully dumped data file {file_name}")
 
-    def retrieve_solutions(self, result, parameters_cp: ParametersCP) -> ResultStorage:
+    def retrieve_solutions(
+        self, result, parameters_cp: ParametersCP, time_presolve=None
+    ) -> ResultStorage:
         """Retrieve the solution found by solving the minizinc instance
 
         Args:
@@ -202,6 +204,7 @@ class ColoringCP(MinizincCPSolver):
             parameters_cp (ParametersCP): parameters of the cp solving, to specify notably how much solution is expected.
 
         Returns (ResultStorage): result object storing the solutions found by the CP solver.
+        :param time_presolve:
 
         """
         intermediate_solutions = parameters_cp.intermediate_solution

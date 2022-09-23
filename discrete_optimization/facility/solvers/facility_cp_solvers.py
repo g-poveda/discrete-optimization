@@ -166,7 +166,9 @@ class FacilityCP(MinizincCPSolver):
             ]
         self.instance = instance
 
-    def retrieve_solutions(self, result, parameters_cp: ParametersCP) -> ResultStorage:
+    def retrieve_solutions(
+        self, result, parameters_cp: ParametersCP, time_presolve=None
+    ) -> ResultStorage:
         intermediate_solutions = parameters_cp.intermediate_solution
         list_facility = []
         objectives = []

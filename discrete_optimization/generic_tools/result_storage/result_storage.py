@@ -23,18 +23,21 @@ fitness_class = Union[float, TupleFitness]
 
 class ResultStorage:
     list_solution_fits: List[Tuple[Solution, fitness_class]]
+    list_computation_time: Optional[List[float]]
     best_solution: Optional[Solution]
     map_solutions: Dict[Solution, fitness_class]
 
     def __init__(
         self,
         list_solution_fits: List[Tuple[Solution, fitness_class]],
+        list_computation_time: Optional[List[float]] = None,
         best_solution: Optional[Solution] = None,
         mode_optim: ModeOptim = ModeOptim.MAXIMIZATION,
         limit_store: bool = True,
         nb_best_store: int = 1000,
     ):
         self.list_solution_fits = list_solution_fits
+        self.list_computation_time = list_computation_time
         self.best_solution = best_solution
         self.mode_optim = mode_optim
         self.maximize = mode_optim == ModeOptim.MAXIMIZATION

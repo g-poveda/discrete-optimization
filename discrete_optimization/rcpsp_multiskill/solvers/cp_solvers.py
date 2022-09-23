@@ -662,7 +662,9 @@ class CP_MS_MRCPSP_MZN(MinizincCPSolver):
                 for s in strings:
                     self.instance.add_string(s)
 
-    def retrieve_solutions(self, result, parameters_cp: ParametersCP):
+    def retrieve_solutions(
+        self, result, parameters_cp: ParametersCP, time_presolve=None
+    ):
         intermediate_solutions = parameters_cp.intermediate_solution
         best_solution = None
         best_makespan = -float("inf")
@@ -1192,7 +1194,9 @@ class CP_MS_MRCPSP_MZN_PREEMPTIVE(MinizincCPSolver):
                 for s in strings:
                     self.instance.add_string(s)
 
-    def retrieve_solutions(self, result, parameters_cp: ParametersCP) -> ResultStorage:
+    def retrieve_solutions(
+        self, result, parameters_cp: ParametersCP, time_presolve=None
+    ) -> ResultStorage:
         intermediate_solutions = parameters_cp.intermediate_solution
         best_solution = None
         best_makespan = -float("inf")

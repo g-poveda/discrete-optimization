@@ -164,7 +164,7 @@ class LNS_CP(SolverDO):
                             else parameters_cp.nb_process,
                         )
                     result_store = self.cp_solver.retrieve_solutions(
-                        result, parameters_cp=parameters_cp
+                        result, parameters_cp=parameters_cp, time_presolve=None
                     )
                     logger.debug(f"iteration n° {iteration} Solved !!!")
                     logger.debug(result.status)

@@ -6,6 +6,7 @@ import json
 import logging
 import os
 from datetime import timedelta
+from time import perf_counter
 from typing import Dict, Hashable, List, Optional, Set, Tuple, Union
 
 from deprecation import deprecated
@@ -86,10 +87,13 @@ files_mzn = {
 class RCPSPSolCP:
     objective: int
     __output_item: Optional[str] = None
+    cur_time: float
 
     def __init__(self, objective, _output_item, **kwargs):
         self.objective = objective
         self.dict = kwargs
+        self.cur_time = perf_counter()
+
         logger.debug(f"One solution {self.objective}")
         logger.debug(f"Output {_output_item}")
 
@@ -344,16 +348,20 @@ class CP_RCPSP_MZN(MinizincCPSolver):
             + ";\n"
         )
 
-    def retrieve_solutions(self, result, parameters_cp: ParametersCP) -> ResultStorage:
+    def retrieve_solutions(
+        self, result, parameters_cp: ParametersCP, time_presolve=None
+    ) -> ResultStorage:
         intermediate_solutions = parameters_cp.intermediate_solution
         best_solution = None
         best_makespan = -float("inf")
         list_solutions_fit = []
         starts = []
+        computation_time = []
         if intermediate_solutions:
             for i in range(len(result)):
                 if isinstance(result[i], RCPSPSolCP):
                     starts.append(result[i].dict["s"])
+                    computation_time.append(result[i].cur_time - time_presolve)
                 else:
                     starts.append(result[i, "s"])
         else:
@@ -384,6 +392,7 @@ class CP_RCPSP_MZN(MinizincCPSolver):
             list_solutions_fit.append((sol, objective))
         result_storage = ResultStorage(
             list_solution_fits=list_solutions_fit,
+            list_computation_time=computation_time,
             best_solution=best_solution,
             mode_optim=self.params_objective_function.sense_function,
             limit_store=False,
@@ -653,7 +662,9 @@ class CP_MRCPSP_MZN(MinizincCPSolver):
             + ";\n"
         )
 
-    def retrieve_solutions(self, result, parameters_cp: ParametersCP):
+    def retrieve_solutions(
+        self, result, parameters_cp: ParametersCP, time_presolve=None
+    ):
         intermediate_solutions = parameters_cp.intermediate_solution
         best_solution = None
         best_makespan = -float("inf")
@@ -846,7 +857,9 @@ class CP_MRCPSP_MZN_WITH_FAKE_TASK(CP_MRCPSP_MZN):
             for s in strings:
                 self.instance.add_string(s)
 
-    def retrieve_solutions(self, result, parameters_cp: ParametersCP):
+    def retrieve_solutions(
+        self, result, parameters_cp: ParametersCP, time_presolve=None
+    ):
         intermediate_solutions = parameters_cp.intermediate_solution
         best_solution = None
         best_makespan = -float("inf")
@@ -1215,7 +1228,9 @@ class CP_RCPSP_MZN_PREEMMPTIVE(MinizincCPSolver):
         )
         return s
 
-    def retrieve_solutions(self, result, parameters_cp: ParametersCP) -> ResultStorage:
+    def retrieve_solutions(
+        self, result, parameters_cp: ParametersCP, time_presolve=None
+    ) -> ResultStorage:
         intermediate_solutions = parameters_cp.intermediate_solution
         best_solution = None
         best_makespan = -float("inf")
@@ -1577,7 +1592,9 @@ class CP_MRCPSP_MZN_PREEMMPTIVE(CP_RCPSP_MZN_PREEMMPTIVE):
         )
         return s
 
-    def retrieve_solutions(self, result, parameters_cp: ParametersCP) -> ResultStorage:
+    def retrieve_solutions(
+        self, result, parameters_cp: ParametersCP, time_presolve=None
+    ) -> ResultStorage:
         intermediate_solutions = parameters_cp.intermediate_solution
         best_solution = None
         best_makespan = -float("inf")
@@ -1890,7 +1907,9 @@ class CP_MRCPSP_MZN_NOBOOL(MinizincCPSolver):
             + ";\n"
         )
 
-    def retrieve_solutions(self, result, parameters_cp: ParametersCP):
+    def retrieve_solutions(
+        self, result, parameters_cp: ParametersCP, time_presolve=None
+    ):
         intermediate_solutions = parameters_cp.intermediate_solution
         best_solution = None
         best_makespan = -float("inf")

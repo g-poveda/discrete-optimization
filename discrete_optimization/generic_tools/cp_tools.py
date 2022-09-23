@@ -11,6 +11,7 @@ import logging
 from abc import abstractmethod
 from datetime import timedelta
 from enum import Enum
+from time import perf_counter, perf_counter_ns
 from typing import Any, Optional
 
 from minizinc import Instance, Model
@@ -164,11 +165,16 @@ class CPSolver(SolverDO):
         ...
 
     @abstractmethod
-    def retrieve_solutions(self, result, parameters_cp: ParametersCP) -> ResultStorage:
+    def retrieve_solutions(
+        self, result, parameters_cp: ParametersCP, time_presolve: Optional[float] = None
+    ) -> ResultStorage:
         """
         Returns a storage solution coherent with the given parameters.
+        :param time_presolve:
         :param result: Result storage returned by the cp solver
         :param parameters_cp: parameters of the CP solver.
+        :param time_presolve: absolute time right before the solve call.
+         Can be used to perform further computation time analysis.
         :return:
         """
         ...
@@ -200,6 +206,7 @@ class MinizincCPSolver(CPSolver):
                 )
         limit_time_s = parameters_cp.time_limit
         intermediate_solutions = parameters_cp.intermediate_solution
+        cur_time = perf_counter()
         if self.silent_solve_error:
             try:
                 result = self.instance.solve(
@@ -229,4 +236,6 @@ class MinizincCPSolver(CPSolver):
         logger.info("Solving finished")
         logger.debug(result.status)
         logger.debug(result.statistics)
-        return self.retrieve_solutions(result=result, parameters_cp=parameters_cp)
+        return self.retrieve_solutions(
+            result=result, parameters_cp=parameters_cp, time_presolve=cur_time
+        )

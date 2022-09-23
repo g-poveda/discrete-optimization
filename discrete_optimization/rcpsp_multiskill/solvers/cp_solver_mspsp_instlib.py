@@ -341,7 +341,9 @@ class CP_MSPSP_MZN(MinizincCPSolver):
         )
         return [s]
 
-    def retrieve_solutions(self, result, parameters_cp: ParametersCP):
+    def retrieve_solutions(
+        self, result, parameters_cp: ParametersCP, time_presolve=None
+    ):
         intermediate_solutions = parameters_cp.intermediate_solution
         best_solution = None
         best_makespan = -float("inf")

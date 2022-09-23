@@ -72,7 +72,9 @@ class CPKnapsackMZN(MinizincCPSolver):
             params_objective_function=params_objective_function,
         )
 
-    def retrieve_solutions(self, result, parameters_cp: ParametersCP) -> ResultStorage:
+    def retrieve_solutions(
+        self, result, parameters_cp: ParametersCP, time_presolve=None
+    ) -> ResultStorage:
         intermediate_solutions = parameters_cp.intermediate_solution
         l_items = []
         objectives = []
@@ -167,7 +169,9 @@ class CPKnapsackMZN2(MinizincCPSolver):
         instance["max_capacity"] = self.knapsack_model.max_capacity
         self.instance = instance
 
-    def retrieve_solutions(self, result, parameters_cp: ParametersCP) -> ResultStorage:
+    def retrieve_solutions(
+        self, result, parameters_cp: ParametersCP, time_presolve=None
+    ) -> ResultStorage:
         l_items_taken = []
         intermediate_solution = parameters_cp.intermediate_solution
         if intermediate_solution:
@@ -267,7 +271,9 @@ class CPMultidimensionalSolver(MinizincCPSolver):
         instance["max_capacity"] = self.knapsack_model.max_capacities
         self.instance = instance
 
-    def retrieve_solutions(self, result, parameters_cp: ParametersCP) -> ResultStorage:
+    def retrieve_solutions(
+        self, result, parameters_cp: ParametersCP, time_presolve=None
+    ) -> ResultStorage:
         intermediate_solutions = parameters_cp.intermediate_solution
         l_taken = []
         objectives = []
@@ -360,7 +366,9 @@ class CPMultidimensionalMultiScenarioSolver(MinizincCPSolver):
         ]
         self.instance = instance
 
-    def retrieve_solutions(self, result, parameters_cp: ParametersCP) -> ResultStorage:
+    def retrieve_solutions(
+        self, result, parameters_cp: ParametersCP, time_presolve=None
+    ) -> ResultStorage:
         intermediate_solutions = parameters_cp.intermediate_solution
         l_taken = []
         objectives = []

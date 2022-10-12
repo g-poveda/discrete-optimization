@@ -52,6 +52,7 @@ from discrete_optimization.rcpsp.solver.rcpsp_pile import (
     PileSolverRCPSP,
     PileSolverRCPSP_Calendar,
 )
+from discrete_optimization.rcpsp.solver.toulbar_solver import ToulbarRCPSPSolver
 from discrete_optimization.rcpsp.specialized_rcpsp.rcpsp_specialized_constraints import (
     RCPSPModelSpecialConstraints,
     RCPSPModelSpecialConstraintsPreemptive,
@@ -171,6 +172,7 @@ solvers = {
         )
     ],
     "gphh": [(GPHH, {})],
+    "cnf": [(ToulbarRCPSPSolver, {})],
 }
 
 solvers_map = {}
@@ -282,6 +284,9 @@ solvers_compatibility = {
         RCPSPModelSpecialConstraints,
         RCPSPModelPreemptive,
         RCPSPModelSpecialConstraintsPreemptive,
+        RCPSPModel,
+    ],
+    ToulbarRCPSPSolver: [
         RCPSPModel,
     ],
 }

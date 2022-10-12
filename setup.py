@@ -59,6 +59,7 @@ setup(
         "sortedcontainers>=2.4",
         "deprecation",
         "typing-extensions>=4.0",
+        "pytoulbar2>=0.0.0.2",
     ],
     tests_require=tests_require,
     extras_require={"test": tests_require},

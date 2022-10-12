@@ -1,10 +1,19 @@
 #  Copyright (c) 2022 AIRBUS and its affiliates.
 #  This source code is licensed under the MIT license found in the
 #  LICENSE file in the root directory of this source tree.
+import sys
+
 from discrete_optimization.rcpsp.rcpsp_parser import get_data_available, parse_file
-from discrete_optimization.rcpsp.solver.toulbar_solver import ToulbarRCPSPSolver
+
+if not sys.platform.startswith("win"):
+    from discrete_optimization.rcpsp.solver.toulbar_solver import ToulbarRCPSPSolver
+
+import pytest
 
 
+@pytest.mark.skipif(
+    sys.platform.startswith("win"), reason="pytoulbar2 not windows available"
+)
 def test_toolb():
     import logging
 

@@ -93,5 +93,5 @@ def run_model_integer_variable():
 
 
 if __name__ == "__main__":
-    create_standalone_input_file()
+    # create_standalone_input_file()
     run_model_integer_variable()

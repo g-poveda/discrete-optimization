@@ -168,58 +168,6 @@ def run_lns_cpopt(
     model = parse_file_mslib(file_path=file, skill_level_version=skill_level_version)
     model = model.to_variant_model()
     initial_solution_provider = None
-    if False:
-        cp_solver_0 = CP_MSPSP_MZN(model, cp_solver_name=CPSolverName.ORTOOLS)
-        cp_solver_0.init_model(
-            output_type=True,
-            model_type="mspsp_compatible",
-            ignore_sec_objective=True,
-            add_objective_makespan=True,
-        )
-        cp_solver_0.instance["maxt"] = 150
-        cp_solver_0.instance["full_output"] = True
-        cp_solver_0.instance.add_string("my_search=assign_Then_start;\n")
-        parameters_cp = ParametersCP.default()
-        parameters_cp.TimeLimit = 35
-        parameters_cp.TimeLimit_iter0 = 25
-        parameters_cp.multiprocess = False
-        parameters_cp.nb_process = 4
-        parameters_cp.free_search = False
-        results = cp_solver_0.solve(parameters_cp=parameters_cp)
-        status = cp_solver_0.result_status
-        if status == Status.OPTIMAL_SOLUTION:
-            print("Optimal solution..")
-            return results
-        if len(results.list_solution_fits) > 0:
-            initial_solution_provider = TrivialInitialSolution(results)
-        else:
-            initial_solution_provider = None
-    if False and initial_solution_provider is None:
-        cp_solver_1 = CP_MSPSP_MZN(model, cp_solver_name=CPSolverName.CHUFFED)
-        cp_solver_1.init_model(
-            output_type=True,
-            model_type="mspsp",
-            ignore_sec_objective=True,
-            add_objective_makespan=True,
-        )
-        cp_solver_1.instance["maxt"] = 200
-        cp_solver_1.instance["full_output"] = True
-        cp_solver_1.instance.add_string("my_search=priority_smallest;\n")
-        parameters_cp = ParametersCP.default()
-        parameters_cp.TimeLimit = 35
-        parameters_cp.TimeLimit_iter0 = 25
-        parameters_cp.multiprocess = False
-        parameters_cp.nb_process = 4
-        parameters_cp.free_search = True
-        results = cp_solver_1.solve(parameters_cp=parameters_cp)
-        status = cp_solver_1.result_status
-        if status == Status.OPTIMAL_SOLUTION:
-            print("Optimal solution..")
-            return results
-        if len(results.list_solution_fits) > 0:
-            initial_solution_provider = TrivialInitialSolution(results)
-        else:
-            initial_solution_provider = None
     if initial_solution_provider is None:
         cp_solver_1 = CP_MSPSP_MZN(model, cp_solver_name=solver_initial_solution)
         cp_solver_1.init_model(

@@ -31,6 +31,9 @@ PSPLIB_DATASETS = {
 IMOPSE_DATASET_URL = "http://imopse.ii.pwr.wroc.pl/files/imopse_validator_pack.zip"
 IMOPSE_DATASET_RELATIVE_PATH = "IMOPSE/dataset_def.zip"
 
+MSLIBN_DATASET_URL = "http://www.projectmanagement.ugent.be/sites/default/files/datasets/MSRCPSP/MSLIB.zip"
+MSLIB_DATASET_RELATIVE_PATH = "MSLIB.zip"
+
 
 def get_data_home(data_home: Optional[str] = None) -> str:
     """Return the path of the discrete-optimization data directory.
@@ -152,6 +155,35 @@ def fetch_data_from_imopse(data_home: Optional[str] = None):
             with zipfile.ZipFile(f"{tmpdir}/{IMOPSE_DATASET_RELATIVE_PATH}") as zipf:
                 zipf.extractall(path=rcpsp_multiskill_dir)
 
+    finally:
+        # remove temporary files
+        urlcleanup()
+
+
+def fetch_data_from_mslib(data_home: Optional[str] = None):
+    """Fetch data from iMOPSE for rcpsp_multiskill examples.
+
+    cf http://imopse.ii.pwr.wroc.pl/download.html
+
+    Params:
+        data_home: Specify the cache folder for the datasets. By default
+            all discrete-optimization data is stored in '~/discrete_optimization_data' subfolders.
+
+    """
+    #  get the proper data directory
+    data_home = get_data_home(data_home=data_home)
+
+    # get rcpsp_multiskill data directory
+    rcpsp_multiskill_dir = f"{data_home}/rcpsp_multiskill_mslib"
+    os.makedirs(rcpsp_multiskill_dir, exist_ok=True)
+
+    try:
+        # download dataset
+        local_file_path, headers = urlretrieve(MSLIBN_DATASET_URL)
+        with tempfile.TemporaryDirectory() as tmpdir:
+            # extract only data
+            with zipfile.ZipFile(local_file_path) as zipf:
+                zipf.extractall(path=rcpsp_multiskill_dir)
     finally:
         # remove temporary files
         urlcleanup()

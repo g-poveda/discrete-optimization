@@ -229,5 +229,6 @@ class MinizincCPSolver(CPSolver):
             )
         logger.info("Solving finished")
         logger.debug(result.status)
+        self.result_status = result.status
         logger.debug(result.statistics)
         return self.retrieve_solutions(result=result, parameters_cp=parameters_cp)

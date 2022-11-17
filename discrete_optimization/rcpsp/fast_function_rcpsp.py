@@ -725,7 +725,6 @@ def sgs_fast_partial_schedule(
     return rcpsp_schedule, unfeasible_non_renewable_resources
 
 
-@njit
 def sgs_fast_partial_schedule_incomplete_permutation_tasks(
     current_time,
     permutation_task,
@@ -753,15 +752,15 @@ def sgs_fast_partial_schedule_incomplete_permutation_tasks(
     minimum_starting_time = {}
     for act in range(permutation_task.shape[0]):
         minimum_starting_time[permutation_task[act]] = max(
-            current_time, minimum_starting_time_array[act]
+            current_time, minimum_starting_time_array[permutation_task[act]]
         )
     done = 0
     nb_task = permutation_task.shape[0]
     pred_links = np.sum(predecessors[permutation_task, :], axis=1)
     done_np = np.zeros((predecessors.shape[0]), dtype=np.int32)
     for t in range(nb_task):
-        activity_end_times[t] = 0
-    for t in range(nb_task):
+        activity_end_times[permutation_task[t]] = 0
+    for t in range(scheduled_task.shape[0]):
         if scheduled_task[t] != -1:
             activity_end_times[t] = (
                 scheduled_task[t] + duration_array[t, modes_array[t]]
@@ -801,7 +800,7 @@ def sgs_fast_partial_schedule_incomplete_permutation_tasks(
                     )
                     pred_links[j] -= 1
 
-    while done < nb_task and not unfeasible_non_renewable_resources:
+    while not unfeasible_non_renewable_resources:
         act_id = 0
         found = False
         for i in range(nb_task):
@@ -864,7 +863,6 @@ def sgs_fast_partial_schedule_incomplete_permutation_tasks(
             activity_end_times[act_id] - duration_array[act_id, modes_array[act_id]],
             activity_end_times[act_id],
         )
-
     return rcpsp_schedule, unfeasible_non_renewable_resources
 
 

@@ -38,7 +38,6 @@ def test_single_mode_ga(random_seed):
     ga_solver._max_evals = 10000
     sol = ga_solver.solve().get_best_solution()
     assert rcpsp_model.satisfy(sol)
-    rcpsp_model.plot_ressource_view(sol)
     fitnesses = rcpsp_model.evaluate(sol)
 
 
@@ -194,8 +193,6 @@ def test_single_mode_moga_aggregated(random_seed):
     sol = ga_solver.solve().get_best_solution()
     assert rcpsp_model.satisfy(sol)
 
-    rcpsp_model.plot_ressource_view(sol)
-
     fitnesses = rcpsp_model.evaluate(sol)
     assert fitnesses == {"makespan": 43, "mean_resource_reserve": 0}
 
@@ -214,7 +211,6 @@ def test_single_mode_moga_aggregated(random_seed):
     sol = ga_solver.solve().get_best_solution()
     assert rcpsp_model.satisfy(sol)
 
-    rcpsp_model.plot_ressource_view(sol)
     fitnesses = rcpsp_model.evaluate(sol)
     assert fitnesses == {"makespan": 43, "mean_resource_reserve": 0}
 
@@ -244,8 +240,6 @@ def test_own_pop_single_mode_ga(random_seed):
     ga_solver._max_evals = 100
     sol = ga_solver.solve().get_best_solution()
     assert rcpsp_model.satisfy(sol)
-
-    rcpsp_model.plot_ressource_view(sol)
 
     fitnesses = rcpsp_model.evaluate(sol)
     assert fitnesses == {"makespan": 49, "mean_resource_reserve": 0}

@@ -11,10 +11,6 @@ from discrete_optimization.rcpsp.rcpsp_model import (
     create_poisson_laws_duration,
 )
 from discrete_optimization.rcpsp.rcpsp_parser import get_data_available, parse_file
-from discrete_optimization.rcpsp.rcpsp_utils import (
-    plot_resource_individual_gantt,
-    plot_ressource_view,
-)
 from discrete_optimization.rcpsp.solver.rcpsp_pile import GreedyChoice, PileSolverRCPSP
 
 
@@ -30,9 +26,6 @@ def test_pile_sm():
         assert rcpsp_model.satisfy(sol)
     sol_2 = RCPSPSolution(problem=rcpsp_model, rcpsp_permutation=sol.rcpsp_permutation)
     assert rcpsp_model.satisfy(sol_2)
-    plot_ressource_view(rcpsp_model, sol)
-    plot_ressource_view(rcpsp_model, sol_2)
-    plot_resource_individual_gantt(rcpsp_model, sol)
     assert rcpsp_model.satisfy(sol)
 
 
@@ -52,9 +45,6 @@ def test_pile_multimode():
         rcpsp_permutation=sol.rcpsp_permutation,
     )
     assert rcpsp_model.satisfy(sol_2)
-    plot_ressource_view(rcpsp_model, sol)
-    plot_ressource_view(rcpsp_model, sol_2)
-    plot_resource_individual_gantt(rcpsp_model, sol)
     assert rcpsp_model.satisfy(sol)
 
 

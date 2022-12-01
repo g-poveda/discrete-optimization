@@ -41,7 +41,6 @@ def test_run_one_example():
         rs = gphh_solver.build_result_storage_for_domain(mdkp)
         GreedyBest(kp).solve().get_best_solution_fit()
         rs.get_best_solution_fit()
-    gphh_solver.plot_solution(show=False)
 
 
 if __name__ == "__main__":

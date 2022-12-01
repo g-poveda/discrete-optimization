@@ -49,7 +49,6 @@ def test_rank_solutions_by_permutation_distance(random_seed):
 
     # Remove similar solutions from result storage
     result_storage.remove_duplicate_solutions(var_name="standardised_permutation")
-    plot_storage_2d(result_storage=result_storage, name_axis=objectives)
 
     # Pick one solution from the ResultStorage
     selected_index = len(result_storage.list_solution_fits) - 1

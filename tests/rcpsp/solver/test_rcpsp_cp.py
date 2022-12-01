@@ -56,8 +56,6 @@ def test_cp_sm(optimisation_level):
     fit_2 = rcpsp_problem.evaluate(solution_rebuilt)
     assert fit == -fit_2["makespan"]
     assert rcpsp_problem.satisfy(solution)
-    rcpsp_problem.plot_ressource_view(solution)
-    plot_task_gantt(rcpsp_problem, solution)
 
 
 def test_cp_sm_intermediate_solution():
@@ -202,7 +200,6 @@ def test_cp_sm_partial_solution():
         j: solution.rcpsp_schedule[j]["start_time"] for j in some_constraints
     }
     assert rcpsp_problem.satisfy(solution)
-    rcpsp_problem.plot_ressource_view(solution)
 
 
 if __name__ == "__main__":

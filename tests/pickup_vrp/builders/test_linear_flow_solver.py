@@ -13,7 +13,6 @@ from discrete_optimization.pickup_vrp.gpdp import ProxyClass, build_pruned_probl
 from discrete_optimization.pickup_vrp.solver.lp_solver import (
     LinearFlowSolver,
     ParametersMilp,
-    plot_solution,
 )
 
 try:
@@ -40,7 +39,6 @@ def test_tsp():
     solutions = linear_flow_solver.solve_iterative(
         parameters_milp=p, do_lns=False, nb_iteration_max=20, include_subtour=False
     )
-    plot_solution(solutions[-1], gpdp)
 
 
 @pytest.mark.skipif(not gurobi_available, reason="You need Gurobi to test this solver.")
@@ -60,7 +58,6 @@ def test_tsp_simplified():
     solutions = linear_flow_solver.solve_iterative(
         parameters_milp=p, do_lns=False, nb_iteration_max=20, include_subtour=False
     )
-    plot_solution(solutions[-1], gpdp)
 
 
 @pytest.mark.skipif(not gurobi_available, reason="You need Gurobi to test this solver.")
@@ -79,7 +76,6 @@ def test_vrp():
     solutions = linear_flow_solver.solve_iterative(
         parameters_milp=p, do_lns=False, nb_iteration_max=20, include_subtour=False
     )
-    plot_solution(solutions[-1], gpdp)
 
 
 @pytest.mark.skip(reason="build_pruned_problem() is buggy for now.")
@@ -99,7 +95,6 @@ def test_vrp_simplified():
     solutions = linear_flow_solver.solve_iterative(
         parameters_milp=p, do_lns=False, nb_iteration_max=20, include_subtour=False
     )
-    plot_solution(solutions[-1], gpdp)
 
 
 @pytest.mark.skipif(not gurobi_available, reason="You need Gurobi to test this solver.")
@@ -117,7 +112,6 @@ def test_selective_tsp():
     solutions = linear_flow_solver.solve_iterative(
         parameters_milp=p, do_lns=False, nb_iteration_max=20, include_subtour=False
     )
-    plot_solution(solutions[-1], gpdp)
 
 
 @pytest.mark.skipif(not gurobi_available, reason="You need Gurobi to test this solver.")
@@ -135,7 +129,6 @@ def test_selective_vrp():
     solutions = linear_flow_solver.solve_iterative(
         parameters_milp=p, do_lns=False, nb_iteration_max=20, include_subtour=False
     )
-    plot_solution(solutions[-1], gpdp)
 
 
 if __name__ == "__main__":

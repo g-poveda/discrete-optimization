@@ -28,7 +28,6 @@ def test_single_mode_nsga_2obj():
     )
     ga_solver._max_evals = 2000
     result_storage = ga_solver.solve()
-    plot_storage_2d(result_storage=result_storage, name_axis=objectives)
 
 
 if __name__ == "__main__":

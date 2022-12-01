@@ -175,7 +175,6 @@ def test_coloring_nsga_1():
     )
 
     result_storage = ga_solver.solve()
-    plot_storage_2d(result_storage=result_storage, name_axis=objectives)
 
 
 def test_coloring_nsga_2():
@@ -199,9 +198,7 @@ def test_coloring_nsga_2():
         mutation=DeapMutation.MUT_UNIFORM_INT,
         max_evals=3000,
     )
-
     result_storage = ga_solver.solve()
-    plot_storage_2d(result_storage=result_storage, name_axis=objectives)
 
 
 @pytest.mark.skipif(not gurobi_available, reason="You need Gurobi to test this solver.")

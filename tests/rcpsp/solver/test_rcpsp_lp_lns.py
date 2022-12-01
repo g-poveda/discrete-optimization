@@ -71,8 +71,6 @@ def test_lns_sm():
     fit_2 = rcpsp_problem.evaluate(solution_rebuilt)
     assert rcpsp_problem.evaluate(solution) == fit_2
     assert rcpsp_problem.satisfy(solution)
-    plot_resource_individual_gantt(rcpsp_problem, solution)
-    plot_ressource_view(rcpsp_problem, solution)
 
 
 def test_lns_mm():
@@ -134,8 +132,6 @@ def test_lns_mm():
     fit_2 = rcpsp_problem.evaluate(solution_rebuilt)
     assert rcpsp_problem.evaluate(solution) == fit_2
     assert rcpsp_problem.satisfy(solution)
-    plot_resource_individual_gantt(rcpsp_problem, solution)
-    plot_ressource_view(rcpsp_problem, solution)
 
 
 if __name__ == "__main__":

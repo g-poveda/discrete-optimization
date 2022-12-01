@@ -15,7 +15,6 @@ from discrete_optimization.generic_tools.result_storage.result_storage import (
 )
 from discrete_optimization.rcpsp.rcpsp_model import RCPSPSolution
 from discrete_optimization.rcpsp.rcpsp_parser import get_data_available, parse_file
-from discrete_optimization.rcpsp.rcpsp_utils import plot_ressource_view, plot_task_gantt
 from discrete_optimization.rcpsp.solver.cp_solvers import CP_RCPSP_MZN
 from discrete_optimization.rcpsp.solver.cpm import CPM, run_partial_classic_cpm
 
@@ -212,10 +211,6 @@ def test_cpm_sm():
     solution, fit = result_storage.get_best_solution_fit()
     assert rcpsp_problem.satisfy(solution)
     assert rcpsp_problem.satisfy(solution_cp)
-    plot_ressource_view(rcpsp_problem, solution, title_figure="cpath")
-    plot_task_gantt(rcpsp_problem, solution)
-    plot_ressource_view(rcpsp_problem, solution_cp, title_figure="cp")
-    plot_task_gantt(rcpsp_problem, solution_cp)
 
 
 def test_cpm_partial():

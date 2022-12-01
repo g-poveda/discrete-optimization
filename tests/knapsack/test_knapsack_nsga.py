@@ -34,7 +34,6 @@ def testing_nsga_1():
     )
 
     result_storage = ga_solver.solve()
-    plot_storage_2d(result_storage=result_storage, name_axis=objectives)
 
 
 def testing_own_bitflip_kp_mutation():
@@ -56,7 +55,6 @@ def testing_own_bitflip_kp_mutation():
         max_evals=3000,
     )
     result_storage = ga_solver.solve()
-    plot_storage_2d(result_storage=result_storage, name_axis=objectives)
 
 
 if __name__ == "__main__":

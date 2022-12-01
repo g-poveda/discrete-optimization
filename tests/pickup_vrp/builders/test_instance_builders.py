@@ -67,7 +67,6 @@ def test_pickup_and_delivery():
     results = solver.solve()
     res_to_plot = min([r for r in results], key=lambda x: x[-1])
     check_solution(res_to_plot[0], model)
-    plot_ortools_solution(res_to_plot, model)
 
 
 def test_pickup_and_delivery_equilibrate():
@@ -111,7 +110,6 @@ def test_pickup_and_delivery_equilibrate():
     results = solver.solve()
     res_to_plot = min([r for r in results], key=lambda x: x[-1])
     check_solution(res_to_plot[0], model)
-    plot_ortools_solution(res_to_plot, model)
 
 
 def test_selective_tsp():
@@ -134,4 +132,3 @@ def test_selective_tsp():
     )
     results = solver.solve()
     res_to_plot = min([r for r in results], key=lambda x: x[-1])
-    plot_ortools_solution(res_to_plot, gpdp)

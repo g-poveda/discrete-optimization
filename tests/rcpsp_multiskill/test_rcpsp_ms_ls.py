@@ -110,7 +110,6 @@ def test_ls_imopse():
     solution: MS_RCPSPSolution = result.get_best_solution()
     model.evaluate(solution)
     assert model.satisfy(solution)
-    plot_resource_individual_gantt(rcpsp_model=model, rcpsp_sol=solution)
 
 
 if __name__ == "__main__":

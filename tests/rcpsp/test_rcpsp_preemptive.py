@@ -179,10 +179,6 @@ def test_preemptive_cp_alamano():
     assert rcpsp_problem.satisfy(best_solution)
     rcpsp_problem.evaluate(best_solution)
 
-    plot_ressource_view(rcpsp_problem, best_solution)
-    plot_resource_individual_gantt(rcpsp_problem, best_solution)
-    plot_task_gantt(rcpsp_problem, best_solution)
-
 
 def test_preemptive_multimode_cp_alamano():
     rcpsp_problem = create_alamano_preemptive_model()
@@ -203,9 +199,6 @@ def test_preemptive_multimode_cp_alamano():
 
     assert rcpsp_problem.satisfy(best_solution)
     rcpsp_problem.evaluate(best_solution)
-    plot_ressource_view(rcpsp_problem, best_solution)
-    plot_resource_individual_gantt(rcpsp_problem, best_solution)
-    plot_task_gantt(rcpsp_problem, best_solution)
 
 
 def test_preemptive_cp_psplib():
@@ -226,9 +219,6 @@ def test_preemptive_cp_psplib():
     best_solution = result_store.get_best_solution()
     assert rcpsp_problem.satisfy(best_solution)
     rcpsp_problem.evaluate(best_solution)
-    plot_ressource_view(rcpsp_problem, best_solution)
-    plot_resource_individual_gantt(rcpsp_problem, best_solution)
-    plot_task_gantt(rcpsp_problem, best_solution)
 
 
 def test_preemptive_multimode_cp_psplib():
@@ -249,9 +239,6 @@ def test_preemptive_multimode_cp_psplib():
     best_solution = result_store.get_best_solution()
     assert rcpsp_problem.satisfy(best_solution)
     rcpsp_problem.evaluate(best_solution)
-    plot_ressource_view(rcpsp_problem, best_solution)
-    plot_resource_individual_gantt(rcpsp_problem, best_solution)
-    plot_task_gantt(rcpsp_problem, best_solution)
 
 
 def test_preeemptive_sgs():

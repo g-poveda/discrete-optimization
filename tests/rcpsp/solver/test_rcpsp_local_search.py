@@ -87,16 +87,6 @@ def test_local_search_sm(random_seed):
 
     sol = sa.solve(dummy, nb_iteration_max=500, pickle_result=False).get_best_solution()
     assert rcpsp_model.satisfy(sol)
-    plot_ressource_view(
-        rcpsp_model=rcpsp_model,
-        rcpsp_sol=sol,
-        title_figure="best makespan",
-    )
-    plot_resource_individual_gantt(
-        rcpsp_model=rcpsp_model,
-        rcpsp_sol=sol,
-        title_figure="best makespan",
-    )
 
 
 def test_local_search_mm(random_seed):
@@ -140,16 +130,6 @@ def test_local_search_mm(random_seed):
 
     sol = sa.solve(dummy, nb_iteration_max=300, pickle_result=False).get_best_solution()
     assert rcpsp_model.satisfy(sol)
-    plot_ressource_view(
-        rcpsp_model=rcpsp_model,
-        rcpsp_sol=sol,
-        title_figure="best makespan",
-    )
-    plot_resource_individual_gantt(
-        rcpsp_model=rcpsp_model,
-        rcpsp_sol=sol,
-        title_figure="best makespan",
-    )
 
 
 def test_local_search_sm_multiobj(random_seed):
@@ -235,26 +215,6 @@ def test_local_search_sm_postpro_multiobj(random_seed):
     )
     assert isinstance(pareto_store, ParetoFront)
     extreme_points = pareto_store.compute_extreme_points()
-    plot_ressource_view(
-        rcpsp_model=rcpsp_model,
-        rcpsp_sol=extreme_points[0][0],
-        title_figure="best makespan",
-    )
-    plot_resource_individual_gantt(
-        rcpsp_model=rcpsp_model,
-        rcpsp_sol=extreme_points[0][0],
-        title_figure="best makespan",
-    )
-    plot_ressource_view(
-        rcpsp_model=rcpsp_model,
-        rcpsp_sol=extreme_points[1][0],
-        title_figure="best availability",
-    )
-    plot_resource_individual_gantt(
-        rcpsp_model=rcpsp_model,
-        rcpsp_sol=extreme_points[1][0],
-        title_figure="best availability",
-    )
 
 
 def test_local_search_mm_multiobj(random_seed):
@@ -304,29 +264,7 @@ def test_local_search_mm_multiobj(random_seed):
         l for l in pareto_store.list_solution_fits if l[0].rcpsp_schedule_feasible
     ]
     pareto_store = result_storage_to_pareto_front(pareto_store, rcpsp_model)
-    plot_storage_2d(result_storage=pareto_store, name_axis=objectives)
-    plot_pareto_2d(pareto_store, name_axis=["makespan", "mean_resource_reserve"])
     extreme_points = pareto_store.compute_extreme_points()
-    plot_ressource_view(
-        rcpsp_model=rcpsp_model,
-        rcpsp_sol=extreme_points[0][0],
-        title_figure="best makespan",
-    )
-    plot_resource_individual_gantt(
-        rcpsp_model=rcpsp_model,
-        rcpsp_sol=extreme_points[0][0],
-        title_figure="best makespan",
-    )
-    plot_ressource_view(
-        rcpsp_model=rcpsp_model,
-        rcpsp_sol=extreme_points[1][0],
-        title_figure="best availability",
-    )
-    plot_resource_individual_gantt(
-        rcpsp_model=rcpsp_model,
-        rcpsp_sol=extreme_points[1][0],
-        title_figure="best availability",
-    )
 
 
 def test_local_search_postpro_multiobj_multimode(random_seed):

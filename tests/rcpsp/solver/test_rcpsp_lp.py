@@ -36,8 +36,6 @@ def test_rcpsp_sm_lp_cbc():
     fit_2 = rcpsp_problem.evaluate(solution_rebuilt)
     assert fit == -fit_2["makespan"]
     assert rcpsp_problem.satisfy(solution)
-    plot_resource_individual_gantt(rcpsp_problem, solution)
-    plot_ressource_view(rcpsp_problem, solution)
 
 
 def test_rcpsp_mm_lp_cbc():
@@ -59,8 +57,6 @@ def test_rcpsp_mm_lp_cbc():
     fit_2 = rcpsp_problem.evaluate(solution_rebuilt)
     assert rcpsp_problem.satisfy(solution)
     assert fit == -fit_2["makespan"]
-    plot_resource_individual_gantt(rcpsp_problem, solution)
-    plot_ressource_view(rcpsp_problem, solution)
 
 
 def test_rcpsp_sm_lp_cbc_partial():
@@ -83,8 +79,6 @@ def test_rcpsp_sm_lp_cbc_partial():
     for task in some_constraints:
         assert solution.get_start_time(task) == some_constraints[task]
     assert rcpsp_problem.satisfy(solution)
-    plot_resource_individual_gantt(rcpsp_problem, solution)
-    plot_ressource_view(rcpsp_problem, solution)
 
 
 if __name__ == "__main__":

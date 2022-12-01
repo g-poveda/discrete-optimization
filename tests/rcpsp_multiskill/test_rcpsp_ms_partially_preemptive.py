@@ -6,11 +6,7 @@ from typing import Dict, List
 
 import pytest
 
-from discrete_optimization.rcpsp.plots.rcpsp_utils_preemptive import plot_ressource_view
 from discrete_optimization.rcpsp.solver.ls_solver import LS_SOLVER, LS_RCPSP_Solver
-from discrete_optimization.rcpsp_multiskill.plots.plot_solution import (
-    plot_resource_individual_gantt_preemptive,
-)
 from discrete_optimization.rcpsp_multiskill.rcpsp_multiskill import (
     Employee,
     MS_RCPSPModel,
@@ -100,10 +96,6 @@ def test_partial_preemptive(model):
     compute_constraints_details(dummy_solution, model.special_constraints)
     assert model.satisfy(dummy_solution)
 
-    plot_resource_individual_gantt_preemptive(
-        rcpsp_model=model, rcpsp_sol=dummy_solution
-    )
-    plot_ressource_view(rcpsp_model=model, rcpsp_sol=dummy_solution)
     cp_solver = CP_MS_MRCPSP_MZN_PARTIAL_PREEMPTIVE(rcpsp_model=model)
     cp_solver.init_model(
         max_time=20,
@@ -119,8 +111,6 @@ def test_partial_preemptive(model):
     result_storage = cp_solver.solve(parameters_cp=ParametersCP.default())
     rcpsp_sol = result_storage.get_last_best_solution()[0]
     assert model.satisfy(rcpsp_sol)
-    plot_resource_individual_gantt_preemptive(rcpsp_model=model, rcpsp_sol=rcpsp_sol)
-    plot_ressource_view(rcpsp_model=model, rcpsp_sol=rcpsp_sol)
 
 
 def test_ls(model):
@@ -129,5 +119,3 @@ def test_ls(model):
     result_storage = solver.solve(nb_iteration_max=5000)
     rcpsp_sol = result_storage.get_last_best_solution()[0]
     assert model.satisfy(rcpsp_sol)
-    plot_resource_individual_gantt_preemptive(rcpsp_model=model, rcpsp_sol=rcpsp_sol)
-    plot_ressource_view(rcpsp_model=model, rcpsp_sol=rcpsp_sol)

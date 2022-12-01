@@ -12,11 +12,6 @@ from discrete_optimization.generic_tools.do_problem import (
 )
 from discrete_optimization.generic_tools.lns_mip import LNS_MILP
 from discrete_optimization.generic_tools.lp_tools import ParametersMilp
-from discrete_optimization.rcpsp.rcpsp_model import RCPSPSolution
-from discrete_optimization.rcpsp.rcpsp_utils import (
-    plot_resource_individual_gantt,
-    plot_ressource_view,
-)
 from discrete_optimization.rcpsp.solver.rcpsp_pile import PileSolverRCPSP_Calendar
 from discrete_optimization.rcpsp_multiskill.rcpsp_multiskill_parser import (
     get_data_available,

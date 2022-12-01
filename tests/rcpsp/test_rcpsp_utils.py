@@ -39,15 +39,6 @@ def test_compute_graph_run():
             length_to_nodes[length] = []
         length_to_nodes[length] += [node]
         position[node] = (length, len(length_to_nodes[length]))
-    nx.draw_networkx(graph_nx, pos=position)
-
-
-def test_plot_gantt():
-    files_available = get_data_available()
-    file = [f for f in files_available if "j301_1.sm" in f][0]
-    rcpsp_problem = parse_file(file)
-    solution = rcpsp_problem.get_dummy_solution()
-    plot_task_gantt(rcpsp_problem, solution)
 
 
 if __name__ == "__main__":

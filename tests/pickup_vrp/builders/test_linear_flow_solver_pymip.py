@@ -38,7 +38,11 @@ def test_tsp():
     gpdp = ProxyClass.from_tsp_model_gpdp(tsp_model=tsp_model, compute_graph=True)
     linear_flow_solver = LinearFlowSolver(problem=gpdp)
     linear_flow_solver.init_model(
-        one_visit_per_node=True, include_capacity=False, include_time_evolution=False
+        one_visit_per_node=True,
+        include_capacity=False,
+        include_time_evolution=False,
+        do_lns=False,
+        nb_iteration_max=20,
     )
     p = ParametersMilp.default()
 
@@ -62,7 +66,7 @@ def test_tsp_with_time():
     p = ParametersMilp.default()
 
     p.time_limit = 100
-    res = linear_flow_solver.solve(parameters_milp=p)
+    res = linear_flow_solver.solve(parameters_milp=p, do_lns=False, nb_iteration_max=20)
     assert isinstance(res, ResultStorage)
     sol = res.get_best_solution()
     assert isinstance(sol, GPDPSolution)
@@ -85,7 +89,7 @@ def test_selective_tsp_with_time():
     )
     p = ParametersMilp.default()
     p.time_limit = 100
-    res = linear_flow_solver.solve(parameters_milp=p)
+    res = linear_flow_solver.solve(parameters_milp=p, do_lns=False, nb_iteration_max=20)
     assert isinstance(res, ResultStorage)
     sol = res.get_best_solution()
     assert isinstance(sol, GPDPSolution)
@@ -110,7 +114,11 @@ def test_selective_vrp():
     )
     p = ParametersMilp.default()
     p.time_limit = 100
-    res = linear_flow_solver.solve(parameters_milp=p)
+    res = linear_flow_solver.solve(
+        parameters_milp=p,
+        do_lns=False,
+        nb_iteration_max=20,
+    )
     assert isinstance(res, ResultStorage)
     sol = res.get_best_solution()
     assert isinstance(sol, GPDPSolution)
@@ -133,7 +141,11 @@ def test_selective_vrp_with_time():
     )
     p = ParametersMilp.default()
     p.time_limit = 100
-    res = linear_flow_solver.solve(parameters_milp=p)
+    res = linear_flow_solver.solve(
+        parameters_milp=p,
+        do_lns=False,
+        nb_iteration_max=20,
+    )
     assert isinstance(res, ResultStorage)
     sol = res.get_best_solution()
     assert isinstance(sol, GPDPSolution)

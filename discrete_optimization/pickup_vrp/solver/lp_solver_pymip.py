@@ -1077,7 +1077,7 @@ class LinearFlowSolverVehicleType(PymipMilpSolver):
         for group_vehicle in variables_edges:
             for e in variables_edges[group_vehicle]:
                 if e[0] == e[1]:
-                    constraint_loop[(group_vehicle, e)] = model.addConstr(
+                    constraint_loop[(group_vehicle, e)] = model.add_constr(
                         variables_edges[group_vehicle][e] == 0,
                         name="loop_" + str((group_vehicle, e)),
                     )
@@ -1540,24 +1540,29 @@ class ConstraintHandlerOrWarmStart:
             )
         )
         iedge = 0
+        start_list = []
         for v in vehicle_keys:
             for e in self.linear_solver.variable_decisions["variables_edges"][v]:
                 val = 0
                 if v in edges_to_add and e in edges_to_add[v]:
-                    self.linear_solver.variable_decisions["variables_edges"][v][
-                        e
-                    ].start = 1
-                    self.linear_solver.variable_decisions["variables_edges"][v][
-                        e
-                    ].varhintval = 1
-                    val = 1
+                    start_list.append(
+                        (
+                            self.linear_solver.variable_decisions["variables_edges"][v][
+                                e
+                            ],
+                            1.0,
+                        )
+                    )
+                    val = 1.0
                 else:
-                    self.linear_solver.variable_decisions["variables_edges"][v][
-                        e
-                    ].start = 0
-                    self.linear_solver.variable_decisions["variables_edges"][v][
-                        e
-                    ].varhintval = 0
+                    start_list.append(
+                        (
+                            self.linear_solver.variable_decisions["variables_edges"][v][
+                                e
+                            ],
+                            0.0,
+                        )
+                    )
                 if self.do_lns:
                     if (
                         rebuilt_dict[v] is not None
@@ -1566,7 +1571,7 @@ class ConstraintHandlerOrWarmStart:
                     ):
                         self.linear_solver.constraint_on_edge[
                             iedge
-                        ] = self.linear_solver.model.addConstr(
+                        ] = self.linear_solver.model.add_constr(
                             self.linear_solver.variable_decisions["variables_edges"][v][
                                 e
                             ]
@@ -1574,6 +1579,7 @@ class ConstraintHandlerOrWarmStart:
                             name="c_" + str(v) + "_" + str(e) + "_" + str(val),
                         )
                         iedge += 1
+        self.linear_solver.model.start = start_list
 
 
 def update_model_cluster_tsp(

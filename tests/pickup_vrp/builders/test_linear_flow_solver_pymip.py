@@ -29,9 +29,11 @@ except ImportError:
     gurobi_available = False
 else:
     gurobi_available = True
+import logging
 
 
 def test_tsp():
+    logging.basicConfig(level=logging.DEBUG)
     files_available = tsp_parser.get_data_available()
     file_path = [f for f in files_available if "tsp_5_1" in f][0]
     tsp_model = tsp_parser.parse_file(file_path)
@@ -41,13 +43,12 @@ def test_tsp():
         one_visit_per_node=True,
         include_capacity=False,
         include_time_evolution=False,
-        do_lns=False,
         nb_iteration_max=20,
     )
     p = ParametersMilp.default()
 
     p.time_limit = 100
-    res = linear_flow_solver.solve(parameters_milp=p)
+    res = linear_flow_solver.solve(parameters_milp=p, do_lns=True, nb_iteration_max=20)
     assert isinstance(res, ResultStorage)
     sol = res.get_best_solution()
     assert isinstance(sol, GPDPSolution)

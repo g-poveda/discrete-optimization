@@ -124,8 +124,8 @@ class PymipMilpSolver(MilpSolver):
         self.model.max_mip_gap = parameters_milp.mip_gap
         self.model.max_mip_gap_abs = parameters_milp.mip_gap_abs
         self.model.sol_pool_size = parameters_milp.pool_solutions
-        self.max_seconds = parameters_milp.time_limit
-        self.max_solutions = parameters_milp.n_solutions_max
+        self.model.max_seconds = parameters_milp.time_limit
+        self.model.max_solutions = parameters_milp.n_solutions_max
 
     def optimize_model(
         self, parameters_milp: Optional[ParametersMilp] = None, **kwargs: Any

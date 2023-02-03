@@ -153,6 +153,8 @@ def test_selective_vrp_with_time():
     assert isinstance(res, ResultStorage)
     sol = res.get_best_solution()
     assert isinstance(sol, GPDPSolution)
+    print(sol.times)
+    print(gpdp.clusters_dict)
     assert (
         len(sol.times) == nb_nodes + 2 * nb_vehicles
     )  # nodes + origin and target of each vehicle

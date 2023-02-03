@@ -189,5 +189,37 @@ def test_selective_vrp():
     plot_solution(solutions[-1], gpdp)
 
 
+@pytest.mark.skipif(not gurobi_available, reason="You need Gurobi to test this solver.")
+def test_selective_vrp_with_time():
+    nb_nodes = 10
+    nb_vehicles = 2
+    nb_clusters = 2
+    gpdp = create_selective_tsp(
+        nb_nodes=nb_nodes, nb_vehicles=nb_vehicles, nb_clusters=nb_clusters
+    )
+    linear_flow_solver = LinearFlowSolver(problem=gpdp)
+    linear_flow_solver.init_model(
+        one_visit_per_node=False,
+        one_visit_per_cluster=True,
+        include_capacity=False,
+        include_time_evolution=True,
+    )
+    p = ParametersMilp.default()
+    p.time_limit = 100
+    res = linear_flow_solver.solve(
+        parameters_milp=p,
+        do_lns=False,
+        nb_iteration_max=20,
+    )
+    assert isinstance(res, ResultStorage)
+    sol = res.get_best_solution()
+    assert isinstance(sol, GPDPSolution)
+    print(sol.times)
+    print(gpdp.clusters_dict)
+    assert (
+        len(sol.times) == nb_nodes + 2 * nb_vehicles
+    )  # nodes + origin and target of each vehicle
+
+
 if __name__ == "__main__":
     test_vrp()

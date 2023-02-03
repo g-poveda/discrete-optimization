@@ -1012,9 +1012,10 @@ def convert_to_gpdpsolution(
         for v, traj in vehicle_tours.items()
     }
     for (v, nodeindex, node_position), output in dimension_output.items():
-        if node_position != NodePosition.START:
+        node = problem.list_nodes[nodeindex]
+        if (node not in times) or (node_position != NodePosition.START):
             if "Time" in output:
-                times[problem.list_nodes[nodeindex]] = output["Time"][1]
+                times[node] = output["Time"][1]
     resource_evolution: Dict[Node, Dict[Node, List[int]]] = {}
     return GPDPSolution(
         problem=problem,

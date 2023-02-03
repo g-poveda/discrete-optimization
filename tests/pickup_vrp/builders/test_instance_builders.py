@@ -162,7 +162,7 @@ def test_pickup_and_delivery_equilibrate_new_api():
     assert isinstance(res, ResultStorage)
     sol = res.get_best_solution()
     assert isinstance(sol, GPDPSolution)
-    assert len(sol.times) == number_of_nodes + number_of_vehicles
+    assert len(sol.times) == number_of_nodes + 2 * number_of_vehicles
 
 
 def test_selective_tsp():
@@ -192,7 +192,10 @@ def test_selective_tsp():
 def test_selective_tsp_new_api():
     nb_nodes = 1000
     nb_vehicles = 1
-    gpdp = create_selective_tsp(nb_nodes=1000, nb_vehicles=1, nb_clusters=100)
+    nb_clusters = 100
+    gpdp = create_selective_tsp(
+        nb_nodes=nb_nodes, nb_vehicles=nb_vehicles, nb_clusters=nb_clusters
+    )
     solver = ORToolsGPDP(
         problem=gpdp, factor_multiplier_distance=1, factor_multiplier_time=1
     )
@@ -213,4 +216,5 @@ def test_selective_tsp_new_api():
     assert isinstance(res, ResultStorage)
     sol = res.get_best_solution()
     assert isinstance(sol, GPDPSolution)
-    assert len(sol.times) == nb_nodes + nb_vehicles
+    print(sol.times)
+    assert len(sol.times) == nb_clusters + 2 * nb_vehicles

@@ -8,7 +8,7 @@ from collections import defaultdict
 from copy import deepcopy
 from enum import Enum
 from functools import partial
-from typing import Dict, Hashable, Iterable, List, Tuple, Union
+from typing import Dict, Hashable, Iterable, List, Tuple, Type, Union
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -16,6 +16,7 @@ import numpy as np
 from discrete_optimization.generic_tools.do_problem import (
     EncodingRegister,
     ModeOptim,
+    ObjectiveDoc,
     ObjectiveHandling,
     ObjectiveRegister,
     Problem,
@@ -578,7 +579,7 @@ class RCPSPModelPreemptive(Problem):
     def evaluate_mobj(self, rcpsp_sol: RCPSPSolutionPreemptive):
         return self.evaluate_mobj_from_dict(self.evaluate(rcpsp_sol))
 
-    def evaluate_mobj_from_dict(self, dict_values: Dict[str, float]):
+    def evaluate_mobj_from_dict(self, dict_values: Dict[str, float]) -> TupleFitness:
         return TupleFitness(
             np.array([-dict_values["makespan"], dict_values["mean_resource_reserve"]]),
             2,
@@ -648,7 +649,7 @@ class RCPSPModelPreemptive(Problem):
 
             return True
 
-    def get_solution_type(self):
+    def get_solution_type(self) -> Type[Solution]:
         return RCPSPSolutionPreemptive
 
     def get_attribute_register(self) -> EncodingRegister:
@@ -681,11 +682,10 @@ class RCPSPModelPreemptive(Problem):
 
     def get_objective_register(self) -> ObjectiveRegister:
         dict_objective = {
-            "makespan": {"type": TypeObjective.OBJECTIVE, "default_weight": -1},
-            "mean_resource_reserve": {
-                "type": TypeObjective.OBJECTIVE,
-                "default_weight": 1,
-            },
+            "makespan": ObjectiveDoc(type=TypeObjective.OBJECTIVE, default_weight=-1.0),
+            "mean_resource_reserve": ObjectiveDoc(
+                type=TypeObjective.OBJECTIVE, default_weight=1.0
+            ),
         }
         return ObjectiveRegister(
             objective_sense=ModeOptim.MAXIMIZATION,

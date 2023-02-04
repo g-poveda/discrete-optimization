@@ -48,6 +48,8 @@ dependencies = [
     "typing-extensions>=4.0",
     "cpmpy>=0.9.9",
     "scipy",
+    "numpy>=1.21",
+    "typing_extensions>=4.4"
 ]
 dynamic = ["version"]
 
@@ -67,3 +69,8 @@ version = {attr = "discrete_optimization.__version__"}
 
 [tool.mypy]
 ignore_missing_imports = true
+strict_optional = true
+implicit_optional = false
+check_untyped_defs = true
+disallow_incomplete_defs = true
+disallow_untyped_defs = true

@@ -3,7 +3,7 @@
 #  LICENSE file in the root directory of this source tree.
 
 import random
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from discrete_optimization.generic_tools.do_mutation import (
     LocalMove,
@@ -24,7 +24,9 @@ from discrete_optimization.generic_tools.mutations.mutation_util import (
 
 class MutationIntegerSpecificArity(Mutation):
     @staticmethod
-    def build(problem: Problem, solution: Solution, **kwargs):
+    def build(
+        problem: Problem, solution: Solution, **kwargs: Any
+    ) -> "MutationIntegerSpecificArity":
         return MutationIntegerSpecificArity(
             problem,
             attribute=kwargs.get("attribute", None),

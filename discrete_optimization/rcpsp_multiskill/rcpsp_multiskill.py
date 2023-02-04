@@ -8,7 +8,7 @@ from collections import defaultdict
 from copy import deepcopy
 from enum import Enum
 from functools import partial
-from typing import Dict, Hashable, Iterable, List, Optional, Set, Tuple, Union
+from typing import Dict, Hashable, Iterable, List, Optional, Set, Tuple, Type, Union
 
 import numpy as np
 import scipy.stats as ss
@@ -16,6 +16,7 @@ import scipy.stats as ss
 from discrete_optimization.generic_tools.do_problem import (
     EncodingRegister,
     ModeOptim,
+    ObjectiveDoc,
     ObjectiveHandling,
     ObjectiveRegister,
     Problem,
@@ -2274,7 +2275,7 @@ class MS_RCPSPModel(Problem):
     def evaluate_mobj(self, rcpsp_sol: MS_RCPSPSolution):
         return self.evaluate_mobj_from_dict(self.evaluate(rcpsp_sol))
 
-    def evaluate_mobj_from_dict(self, dict_values: Dict[str, float]):
+    def evaluate_mobj_from_dict(self, dict_values: Dict[str, float]) -> TupleFitness:
         return TupleFitness(np.array([-dict_values["makespan"]]), 1)
 
     def satisfy(self, variable: Solution) -> bool:
@@ -2596,8 +2597,8 @@ class MS_RCPSPModel(Problem):
         val += "\nSpecial constraints : " + str(self.do_special_constraints)
         return val
 
-    def get_solution_type(self):
-        return None
+    def get_solution_type(self) -> Type[Solution]:
+        return MS_RCPSPSolution
 
     def get_attribute_register(self) -> EncodingRegister:
         dict_register = {
@@ -2615,14 +2616,13 @@ class MS_RCPSPModel(Problem):
 
     def get_objective_register(self) -> ObjectiveRegister:
         dict_objective = {
-            "makespan": {"type": TypeObjective.OBJECTIVE, "default_weight": -1}
+            "makespan": ObjectiveDoc(type=TypeObjective.OBJECTIVE, default_weight=-1.0)
         }
         handling = ObjectiveHandling.SINGLE
         if self.includes_special_constraint():
-            dict_objective["constraint_penalty"] = {
-                "type": TypeObjective.PENALTY,
-                "default_weight": -100,
-            }
+            dict_objective["constraint_penalty"] = ObjectiveDoc(
+                type=TypeObjective.PENALTY, default_weight=-100.0
+            )
             handling = ObjectiveHandling.AGGREGATE
         return ObjectiveRegister(
             objective_sense=ModeOptim.MAXIMIZATION,
@@ -2919,7 +2919,7 @@ class MS_RCPSPModel_Variant(MS_RCPSPModel):
         objectives = self.evaluate(rcpsp_sol)
         return objectives
 
-    def get_solution_type(self):
+    def get_solution_type(self) -> Type[Solution]:
         if not self.preemptive:
             return MS_RCPSPSolution_Variant
         else:

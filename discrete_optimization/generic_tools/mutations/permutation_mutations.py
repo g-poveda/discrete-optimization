@@ -4,7 +4,7 @@
 
 import random
 from copy import deepcopy
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 
@@ -41,7 +41,9 @@ class ShuffleMove(LocalMove):
 
 class PermutationShuffleMutation(Mutation):
     @staticmethod
-    def build(problem: Problem, solution: Solution, **kwargs):
+    def build(
+        problem: Problem, solution: Solution, **kwargs: Any
+    ) -> "PermutationShuffleMutation":
         return PermutationShuffleMutation(problem, solution)
 
     def __init__(
@@ -77,7 +79,9 @@ class PermutationShuffleMutation(Mutation):
 
 class PermutationPartialShuffleMutation(Mutation):
     @staticmethod
-    def build(problem: Problem, solution: Solution, **kwargs):
+    def build(
+        problem: Problem, solution: Solution, **kwargs: Any
+    ) -> "PermutationPartialShuffleMutation":
         return PermutationPartialShuffleMutation(
             problem,
             solution,
@@ -124,7 +128,7 @@ class PermutationPartialShuffleMutation(Mutation):
 
 
 class SwapsLocalMove(LocalMove):
-    def __init__(self, attribute, list_index_swap: List[Tuple[int, int]]):
+    def __init__(self, attribute: str, list_index_swap: List[Tuple[int, int]]):
         self.attribute = attribute
         self.list_index_swap = list_index_swap
 
@@ -145,7 +149,7 @@ class SwapsLocalMove(LocalMove):
 
 class PermutationSwap(Mutation):
     @staticmethod
-    def build(problem: Problem, solution: Solution, **kwargs):
+    def build(problem: Problem, solution: Solution, **kwargs: Any) -> "PermutationSwap":
         return PermutationSwap(
             problem,
             solution,
@@ -186,7 +190,7 @@ class PermutationSwap(Mutation):
 
 
 class TwoOptMove(LocalMove):
-    def __init__(self, attribute, index_2opt: List[Tuple[int, int]]):
+    def __init__(self, attribute: str, index_2opt: List[Tuple[int, int]]):
         self.attribute = attribute
         self.index_2opt = index_2opt
 
@@ -207,7 +211,7 @@ class TwoOptMove(LocalMove):
 
 class TwoOptMutation(Mutation):
     @staticmethod
-    def build(problem: Problem, solution: Solution, **kwargs):
+    def build(problem: Problem, solution: Solution, **kwargs: Any) -> "TwoOptMutation":
         return TwoOptMutation(
             problem, solution, attribute=kwargs.get("attribute", None)
         )

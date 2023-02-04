@@ -6,16 +6,18 @@ import logging
 import random
 from copy import deepcopy
 from functools import partial
-from typing import Dict, Hashable, List, Tuple, Union
+from typing import Dict, Hashable, List, Tuple, Type, Union
 
 import networkx as nx
 import numpy as np
 
 from discrete_optimization.generic_tools.do_problem import (
     ModeOptim,
+    ObjectiveDoc,
     ObjectiveHandling,
     ObjectiveRegister,
     Problem,
+    Solution,
     TypeObjective,
 )
 from discrete_optimization.rcpsp.fast_function_rcpsp import (
@@ -328,11 +330,10 @@ class RCPSPModelSpecialConstraints(RCPSPModel):
 
     def get_objective_register(self) -> ObjectiveRegister:
         dict_objective = {
-            "makespan": {"type": TypeObjective.OBJECTIVE, "default_weight": -1},
-            "constraint_penalty": {
-                "type": TypeObjective.PENALTY,
-                "default_weight": -100,
-            },
+            "makespan": ObjectiveDoc(type=TypeObjective.OBJECTIVE, default_weight=-1.0),
+            "constraint_penalty": ObjectiveDoc(
+                type=TypeObjective.PENALTY, default_weight=-100.0
+            ),
         }
         return ObjectiveRegister(
             objective_sense=ModeOptim.MAXIMIZATION,
@@ -358,7 +359,7 @@ class RCPSPModelSpecialConstraints(RCPSPModel):
         )
         return sol
 
-    def get_solution_type(self):
+    def get_solution_type(self) -> Type[Solution]:
         return RCPSPSolutionSpecial
 
 
@@ -582,11 +583,10 @@ class RCPSPModelSpecialConstraintsPreemptive(RCPSPModelPreemptive):
 
     def get_objective_register(self) -> ObjectiveRegister:
         dict_objective = {
-            "makespan": {"type": TypeObjective.OBJECTIVE, "default_weight": -1},
-            "constraint_penalty": {
-                "type": TypeObjective.PENALTY,
-                "default_weight": -100,
-            },
+            "makespan": ObjectiveDoc(type=TypeObjective.OBJECTIVE, default_weight=-1.0),
+            "constraint_penalty": ObjectiveDoc(
+                type=TypeObjective.PENALTY, default_weight=-100.0
+            ),
         }
         return ObjectiveRegister(
             objective_sense=ModeOptim.MAXIMIZATION,
@@ -615,7 +615,7 @@ class RCPSPModelSpecialConstraintsPreemptive(RCPSPModelPreemptive):
         )
         return sol
 
-    def get_solution_type(self):
+    def get_solution_type(self) -> Type[Solution]:
         return RCPSPSolutionSpecialPreemptive
 
 

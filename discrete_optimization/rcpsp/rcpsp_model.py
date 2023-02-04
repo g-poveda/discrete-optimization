@@ -7,7 +7,7 @@ from collections import defaultdict
 from copy import deepcopy
 from enum import Enum
 from functools import partial
-from typing import Dict, Hashable, Iterable, List, Tuple, Union
+from typing import Dict, Hashable, Iterable, List, Sequence, Tuple, Type, Union
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -18,6 +18,7 @@ from discrete_optimization.generic_tools.do_problem import (
     EncodingRegister,
     MethodAggregating,
     ModeOptim,
+    ObjectiveDoc,
     ObjectiveHandling,
     ObjectiveRegister,
     Problem,
@@ -524,7 +525,7 @@ class RCPSPModel(Problem):
     def evaluate_mobj(self, rcpsp_sol: RCPSPSolution):
         return self.evaluate_mobj_from_dict(self.evaluate(rcpsp_sol))
 
-    def evaluate_mobj_from_dict(self, dict_values: Dict[str, float]):
+    def evaluate_mobj_from_dict(self, dict_values: Dict[str, float]) -> TupleFitness:
         return TupleFitness(
             np.array([-dict_values["makespan"], dict_values["mean_resource_reserve"]]),
             2,
@@ -630,7 +631,7 @@ class RCPSPModel(Problem):
         )
         return val
 
-    def get_solution_type(self):
+    def get_solution_type(self) -> Type[Solution]:
         return RCPSPSolution
 
     def get_attribute_register(self) -> EncodingRegister:
@@ -667,7 +668,7 @@ class RCPSPModel(Problem):
 
     def get_objective_register(self) -> ObjectiveRegister:
         dict_objective = {
-            "makespan": {"type": TypeObjective.OBJECTIVE, "default_weight": -1}
+            "makespan": ObjectiveDoc(type=TypeObjective.OBJECTIVE, default_weight=-1.0)
         }
         # "mean_resource_reserve": {"type": TypeObjective.OBJECTIVE, "default_weight": 1}}
         return ObjectiveRegister(
@@ -984,10 +985,8 @@ class MultiModeRCPSPModel(RCPSPModel):
 
 
 class Aggreg_RCPSPModel(RobustProblem, RCPSPModel):
-    list_problems: List[RCPSPModel]
-
     def __init__(
-        self, list_problem: List[RCPSPModel], method_aggregating: MethodAggregating
+        self, list_problem: Sequence[RCPSPModel], method_aggregating: MethodAggregating
     ):
         RobustProblem.__init__(
             self, list_problem=list_problem, method_aggregating=method_aggregating

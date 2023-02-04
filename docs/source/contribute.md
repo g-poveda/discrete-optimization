@@ -72,9 +72,12 @@ do-venv\Scripts\activate
 
 We use the option `--editable` (or `-e`) of `pip install`.
 
+> **Note**: you need a version of pip >=21.3 to be able to install in editable mode a project using a `pyproject.toml` file.
+
 ```shell
 git clone https://github.com/airbus/discrete-optimization.git
 cd discrete-optimization
+pip install -U pip
 pip install -e .
 ```
 
@@ -154,7 +157,7 @@ that have been removed.
 - `generate_nb_index.py` update the list of notebooks in the generated file notebooks.md that is
 the source file of notebooks page. The command has to be launched when a new notebook is added.
 - The last command actually build the html outputs and is required each time a doc page has a change
-(either beacuase a source file has changed or the docstrings in the code have been modified).
+(either because a source file has changed or the docstrings in the code have been modified).
 - To update the doc faster when testing changes, launch only the last command
 without the previous `rm [...]`.
 ```

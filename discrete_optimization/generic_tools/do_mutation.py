@@ -3,7 +3,7 @@
 #  LICENSE file in the root directory of this source tree.
 
 from abc import abstractmethod
-from typing import Dict, Tuple
+from typing import Any, Dict, Tuple
 
 from discrete_optimization.generic_tools.do_problem import Problem, Solution
 
@@ -39,8 +39,8 @@ class LocalMoveDefault(LocalMove):
 
 class Mutation:
     @staticmethod
-    def build(problem: Problem, solution: Solution, **kwargs):
-        return NotImplementedError("Please implement it !")
+    def build(problem: Problem, solution: Solution, **kwargs: Any) -> "Mutation":
+        raise NotImplementedError("Please implement it !")
 
     @abstractmethod
     def mutate(self, solution: Solution) -> Tuple[Solution, LocalMove]:

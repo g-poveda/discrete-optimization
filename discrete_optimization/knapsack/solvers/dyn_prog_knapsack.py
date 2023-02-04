@@ -4,6 +4,7 @@
 
 import logging
 import time
+from typing import Any, Optional
 
 import numpy as np
 
@@ -19,19 +20,26 @@ from discrete_optimization.knapsack.knapsack_model import (
     KnapsackModel,
     KnapsackSolution,
 )
+from discrete_optimization.knapsack.solvers.knapsack_solver import SolverKnapsack
 
 logger = logging.getLogger(__name__)
 
 
-class KnapsackDynProg(SolverDO):
+class KnapsackDynProg(SolverKnapsack):
     def __init__(
         self,
         knapsack_model: KnapsackModel,
-        params_objective_function: ParamsObjectiveFunction = None,
+        params_objective_function: Optional[ParamsObjectiveFunction] = None,
     ):
-        self.knapsack_model = knapsack_model
+        SolverKnapsack.__init__(self, knapsack_model=knapsack_model)
         self.nb_items = self.knapsack_model.nb_items
-        self.capacity = self.knapsack_model.max_capacity
+        capacity = int(self.knapsack_model.max_capacity)
+        if capacity != self.knapsack_model.max_capacity:
+            logger.warning(
+                "knapsack_model.max_capacity should be an integer for dynamic programming. "
+                "Coercing it to an integer for the solver."
+            )
+        self.capacity: int = capacity
         self.table = np.zeros((self.nb_items + 1, self.capacity + 1))
         (
             self.aggreg_sol,
@@ -42,14 +50,11 @@ class KnapsackDynProg(SolverDO):
             params_objective_function=params_objective_function,
         )
 
-    def init_model(self, **args):
-        pass
-
-    def solve(self, **args):
-        start_by_most_promising = args.get("greedy_start", False)
-        max_items = args.get("max_items", self.knapsack_model.nb_items + 1)
+    def solve(self, **kwargs: Any) -> ResultStorage:
+        start_by_most_promising = kwargs.get("greedy_start", False)
+        max_items = kwargs.get("max_items", self.knapsack_model.nb_items + 1)
         max_items = min(self.knapsack_model.nb_items + 1, max_items)
-        max_time_seconds = args.get("max_time_seconds", None)
+        max_time_seconds = kwargs.get("max_time_seconds", None)
         if max_time_seconds is None:
             do_time = False
         else:
@@ -78,7 +83,9 @@ class KnapsackDynProg(SolverDO):
                 index_promising[nb_item - 1]
             ]
             for capacity in range(self.capacity + 1):
-                weight = self.knapsack_model.list_items[index_item].weight
+                weight = int(
+                    self.knapsack_model.list_items[index_item].weight
+                )  # weight should be an integer for this algo
                 value = self.knapsack_model.list_items[index_item].value
                 if weight > capacity:
                     self.table[nb_item, capacity] = self.table[nb_item - 1, capacity]
@@ -102,10 +109,11 @@ class KnapsackDynProg(SolverDO):
                 ]
                 taken[self.knapsack_model.list_items[index_item].index] = 1
                 value += self.knapsack_model.list_items[index_item].value
-                weight += self.knapsack_model.list_items[index_item].weight
+                weight += int(self.knapsack_model.list_items[index_item].weight)
                 cur_indexes = (
                     cur_indexes[0] - 1,
-                    cur_indexes[1] - self.knapsack_model.list_items[index_item].weight,
+                    cur_indexes[1]
+                    - int(self.knapsack_model.list_items[index_item].weight),
                 )
             else:
                 cur_indexes = (cur_indexes[0] - 1, cur_indexes[1])
@@ -120,10 +128,10 @@ class KnapsackDynProg(SolverDO):
             mode_optim=self.params_objective_function.sense_function,
         )
 
-    def solve_np(self, **args):
-        start_by_most_promising = args.get("greedy_start", False)
-        max_items = args.get("max_items", self.knapsack_model.nb_items + 1)
-        max_time_seconds = args.get("max_time_seconds", None)
+    def solve_np(self, **kwargs: Any) -> ResultStorage:
+        start_by_most_promising = kwargs.get("greedy_start", False)
+        max_items = kwargs.get("max_items", self.knapsack_model.nb_items + 1)
+        max_time_seconds = kwargs.get("max_time_seconds", None)
         if max_time_seconds is None:
             do_time = False
         else:
@@ -151,7 +159,7 @@ class KnapsackDynProg(SolverDO):
             index_item = self.knapsack_model.index_to_index_list[
                 index_promising[nb_item - 1]
             ]
-            weight = self.knapsack_model.list_items[index_item].weight
+            weight = int(self.knapsack_model.list_items[index_item].weight)
             value = self.knapsack_model.list_items[index_item].value
             vec_1 = self.table[nb_item - 1, :]
             ind = [max(capacity - weight, 0) for capacity in range(self.capacity + 1)]
@@ -171,10 +179,11 @@ class KnapsackDynProg(SolverDO):
                 ]
                 taken[self.knapsack_model.list_items[index_item].index] = 1
                 value += self.knapsack_model.list_items[index_item].value
-                weight += self.knapsack_model.list_items[index_item].weight
+                weight += int(self.knapsack_model.list_items[index_item].weight)
                 cur_indexes = (
                     cur_indexes[0] - 1,
-                    cur_indexes[1] - self.knapsack_model.list_items[index_item].weight,
+                    cur_indexes[1]
+                    - int(self.knapsack_model.list_items[index_item].weight),
                 )
             else:
                 cur_indexes = (cur_indexes[0] - 1, cur_indexes[1])

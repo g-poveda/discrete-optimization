@@ -225,7 +225,7 @@ class GPDP(Problem):
             i: self.list_nodes[i] for i in range(len(self.list_nodes))
         }
 
-        def get_edges_for_vehicle(vehicle: int) -> KeysView[Tuple[Hashable, Hashable]]:
+        def get_edges_for_vehicle(vehicle: int) -> KeysView[Edge]:
             if self.graph is None:
                 self.compute_graph()
                 if self.graph is None:

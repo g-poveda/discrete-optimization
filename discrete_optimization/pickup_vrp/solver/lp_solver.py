@@ -87,7 +87,15 @@ def convert_temporaryresult_to_gpdpsolution(
         temporaryresult.all_variables is not None
         and "time_leaving" in temporaryresult.all_variables
     ):
-        times = temporaryresult.all_variables["time_leaving"]
+        # We will only store the time values to visited nodes (which are not necessarly all the nodes
+        # when we run cluster version of the problem
+        nodes_visited_in_results = set()
+        for trajectory in temporaryresult.rebuilt_dict.values():
+            nodes_visited_in_results.update(trajectory)
+        times = {
+            n: temporaryresult.all_variables["time_leaving"][n]
+            for n in nodes_visited_in_results
+        }
     resource_evolution: Dict[Node, Dict[Node, List[int]]] = {}
     return GPDPSolution(
         problem=problem,

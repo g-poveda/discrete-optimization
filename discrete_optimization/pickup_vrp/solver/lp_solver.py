@@ -119,6 +119,7 @@ def retrieve_ith_solution(
             value = variable_decisions["variables_edges"][vehicle][edge].getAttr("Xn")
             if value <= 0.1:
                 continue
+            print("value  =", value)
             xsolution[vehicle][edge] = 1
     results["variables_edges"] = cast(Dict[Hashable, Any], xsolution)
     for key in variable_decisions:
@@ -186,7 +187,7 @@ class LinearFlowSolver(GurobiMilpSolver):
     ) -> None:
         constraint_one_visit = {}
         for node in nodes_of_interest:
-            constraint_one_visit[node] = model.addConstr(
+            constraint_one_visit[node] = model.addLConstr(
                 lhs=grb.quicksum(
                     [variables_edges[x[0]][x[1]] for x in edges_in_all_vehicles[node]]
                 ),
@@ -194,7 +195,7 @@ class LinearFlowSolver(GurobiMilpSolver):
                 rhs=1,
                 name="visit_" + str(node),
             )
-            constraint_one_visit[(node, "out")] = model.addConstr(
+            constraint_one_visit[(node, "out")] = model.addLConstr(
                 lhs=grb.quicksum(
                     [variables_edges[x[0]][x[1]] for x in edges_out_all_vehicles[node]]
                 ),
@@ -202,56 +203,6 @@ class LinearFlowSolver(GurobiMilpSolver):
                 rhs=1,
                 name="visitout_" + str(node),
             )
-        model.update()
-
-    def custom_constraint(
-        self,
-        model: "grb.Model",
-        nodes_to_visit: Iterable[Node],
-        nodes_to_validate: Iterable[Node],
-        edges_validating: Dict[Union[Node, Tuple[Node, str]], Dict[str, Any]],
-        variables_edges: Dict[int, Dict[Edge, Any]],
-        edges_in_all_vehicles: Dict[Node, Set[Tuple[int, Edge]]],
-        edges_out_all_vehicles: Dict[Node, Set[Tuple[int, Edge]]],
-        edges_in_per_vehicle: Dict[int, Dict[Node, Set[Edge]]],
-        edges_out_per_vehicle: Dict[int, Dict[Node, Set[Edge]]],
-    ) -> None:
-        constraint_one_visit: Dict[Union[Node, Tuple[Node, str]], Any] = {}
-        for node in nodes_to_visit:
-            constraint_one_visit[node] = model.addConstr(
-                lhs=grb.quicksum(
-                    [variables_edges[x[0]][x[1]] for x in edges_in_all_vehicles[node]]
-                ),
-                sense=grb.GRB.GREATER_EQUAL,
-                rhs=1,
-                name="visit_" + str(node),
-            )
-            constraint_one_visit[(node, "out")] = model.addConstr(
-                lhs=grb.quicksum(
-                    [variables_edges[x[0]][x[1]] for x in edges_out_all_vehicles[node]]
-                ),
-                sense=grb.GRB.GREATER_EQUAL,
-                rhs=1,
-                name="visitout_" + str(node),
-            )
-        for validate in edges_validating:
-            if len(edges_validating[validate]["index_validate"]) > 0:
-                for vehicle in range(len(edges_validating[validate]["index_validate"])):
-                    node = edges_validating[validate]["index_validate"][vehicle]
-                    constraint_one_visit[validate] = model.addConstr(
-                        grb.quicksum(
-                            [
-                                variables_edges[vehicle][e]
-                                for e in edges_validating[validate]["edges"]
-                            ]
-                            + [
-                                variables_edges[vehicle][e]
-                                for e in edges_in_per_vehicle[vehicle][node]
-                            ]
-                        )
-                        >= 1,
-                        name="visit_alternative_" + str(node),
-                    )
         model.update()
 
     def one_visit_per_clusters(
@@ -268,7 +219,7 @@ class LinearFlowSolver(GurobiMilpSolver):
                 node in nodes_of_interest
                 for node in self.problem.clusters_to_node[cluster]
             ):
-                constraint_cluster[cluster] = model.addConstr(
+                constraint_cluster[cluster] = model.addLConstr(
                     lhs=grb.quicksum(
                         [
                             variables_edges[x[0]][x[1]]
@@ -282,7 +233,7 @@ class LinearFlowSolver(GurobiMilpSolver):
                     rhs=1,
                     name="visit_" + str(cluster),
                 )
-                constraint_cluster[(cluster, "out")] = model.addConstr(
+                constraint_cluster[(cluster, "out")] = model.addLConstr(
                     lhs=grb.quicksum(
                         [
                             variables_edges[x[0]][x[1]]
@@ -328,13 +279,13 @@ class LinearFlowSolver(GurobiMilpSolver):
         }
         for v in self.problem.origin_vehicle:
             for r in resources_variable_coming:
-                model.addConstr(
+                model.addLConstr(
                     resources_variable_coming[r][self.problem.origin_vehicle[v]]
                     == self.problem.resources_flow_node[self.problem.origin_vehicle[v]][
                         r
                     ]
                 )
-                model.addConstr(
+                model.addLConstr(
                     resources_variable_leaving[r][self.problem.origin_vehicle[v]]
                     == self.problem.resources_flow_node[self.problem.origin_vehicle[v]][
                         r
@@ -357,7 +308,7 @@ class LinearFlowSolver(GurobiMilpSolver):
                     )
                     index += 1
                 if node not in all_origin:
-                    model.addConstr(
+                    model.addLConstr(
                         resources_variable_leaving[r][node]
                         == resources_variable_coming[r][node]
                         + self.problem.resources_flow_node[node][r]
@@ -392,7 +343,7 @@ class LinearFlowSolver(GurobiMilpSolver):
         }
         for v in consumption_per_vehicle:
             for r in consumption_per_vehicle[v]:
-                model.addConstr(
+                model.addLConstr(
                     consumption_per_vehicle[v][r]
                     == grb.quicksum(
                         variables_edges[v][e]
@@ -405,7 +356,7 @@ class LinearFlowSolver(GurobiMilpSolver):
                     )
                 )
                 # redundant :
-                model.addConstr(
+                model.addLConstr(
                     lhs=consumption_per_vehicle[v][r],
                     sense=grb.GRB.LESS_EQUAL,
                     rhs=self.problem.capacities[v][r][1],
@@ -433,7 +384,7 @@ class LinearFlowSolver(GurobiMilpSolver):
             for node in edges_in_all_vehicles
         }
         for v in self.problem.origin_vehicle:
-            model.addConstr(time_coming[self.problem.origin_vehicle[v]] == 0)
+            model.addLConstr(time_coming[self.problem.origin_vehicle[v]] == 0)
         index = 0
         all_origin = set(self.problem.origin_vehicle.values())
         for node in time_leaving:
@@ -450,7 +401,7 @@ class LinearFlowSolver(GurobiMilpSolver):
                 )
                 index += 1
             if node not in all_origin:
-                model.addConstr(
+                model.addLConstr(
                     time_leaving[node]
                     >= time_coming[node] + self.problem.time_delta_node[node]
                 )
@@ -518,7 +469,7 @@ class LinearFlowSolver(GurobiMilpSolver):
             }
             self.objective = model.addVar(vtype=grb.GRB.INTEGER, obj=100)
             for j in self.spans:
-                model.addConstr(
+                model.addLConstr(
                     self.spans[j]
                     == grb.quicksum(
                         [
@@ -528,7 +479,7 @@ class LinearFlowSolver(GurobiMilpSolver):
                         ]
                     )
                 )
-                model.addConstr(self.objective >= self.spans[j], name="obj")
+                model.addLConstr(self.objective >= self.spans[j], name="obj")
             model.update()
         self.nodes_of_interest = nodes_of_interest
         self.variables_edges = variables_edges
@@ -537,7 +488,7 @@ class LinearFlowSolver(GurobiMilpSolver):
         for vehicle in variables_edges:
             for e in variables_edges[vehicle]:
                 if e[0] == e[1]:
-                    constraint_loop[(vehicle, e)] = model.addConstr(
+                    constraint_loop[(vehicle, e)] = model.addLConstr(
                         variables_edges[vehicle][e] == 0,
                         name="loop_" + str((vehicle, e)),
                     )
@@ -577,7 +528,7 @@ class LinearFlowSolver(GurobiMilpSolver):
             node_origin = self.problem.origin_vehicle[name_vehicles[vehicle]]
             node_target = self.problem.target_vehicle[name_vehicles[vehicle]]
             same_node = node_origin == node_target
-            constraints_out_flow[(vehicle, node_origin)] = model.addConstr(
+            constraints_out_flow[(vehicle, node_origin)] = model.addLConstr(
                 grb.quicksum(
                     [
                         variables_edges[vehicle][edge]
@@ -590,7 +541,7 @@ class LinearFlowSolver(GurobiMilpSolver):
                 == count_origin[node_origin],
                 name="outflow_" + str((vehicle, node_origin)),
             )  # Avoid loop
-            constraints_in_flow[(vehicle, node_target)] = model.addConstr(
+            constraints_in_flow[(vehicle, node_target)] = model.addLConstr(
                 grb.quicksum(
                     [
                         variables_edges[vehicle][edge]
@@ -604,7 +555,7 @@ class LinearFlowSolver(GurobiMilpSolver):
                 name="inflow_" + str((vehicle, node_target)),
             )  # Avoid loop
 
-            constraints_out_flow[(vehicle, node_target)] = model.addConstr(
+            constraints_out_flow[(vehicle, node_target)] = model.addLConstr(
                 lhs=grb.quicksum(
                     [
                         variables_edges[vehicle][edge]
@@ -622,7 +573,7 @@ class LinearFlowSolver(GurobiMilpSolver):
         for vehicle in range(nb_vehicle):
             origin = self.problem.origin_vehicle[name_vehicles[vehicle]]
             target = self.problem.target_vehicle[name_vehicles[vehicle]]
-            model.addConstr(
+            model.addLConstr(
                 grb.quicksum(
                     [
                         variables_edges[v][edge]
@@ -632,7 +583,7 @@ class LinearFlowSolver(GurobiMilpSolver):
                 )
                 == 0
             )
-            model.addConstr(
+            model.addLConstr(
                 grb.quicksum(
                     [
                         variables_edges[v][edge]
@@ -649,7 +600,7 @@ class LinearFlowSolver(GurobiMilpSolver):
             same_node = node_origin == node_target
             for node in edges_in_per_vehicles[vehicle]:
                 if same_node or node not in {node_origin, node_target}:
-                    constraints_flow_conservation[(vehicle, node)] = model.addConstr(
+                    constraints_flow_conservation[(vehicle, node)] = model.addLConstr(
                         grb.quicksum(
                             [
                                 variables_edges[vehicle][e]
@@ -670,7 +621,7 @@ class LinearFlowSolver(GurobiMilpSolver):
                     if unique_visit:
                         constraints_flow_conservation[
                             (vehicle, node, "in")
-                        ] = model.addConstr(
+                        ] = model.addLConstr(
                             grb.quicksum(
                                 [
                                     variables_edges[vehicle][e]
@@ -698,7 +649,7 @@ class LinearFlowSolver(GurobiMilpSolver):
                             continue
                         if edge[0] == node_target or edge[1] == node_target:
                             continue
-                        constraint_tour_2length[cnt_tour] = model.addConstr(
+                        constraint_tour_2length[cnt_tour] = model.addLConstr(
                             variables_edges[vehicle][edge]
                             + variables_edges[vehicle][(edge[1], edge[0])]
                             <= 1,
@@ -722,7 +673,7 @@ class LinearFlowSolver(GurobiMilpSolver):
                     if len(neigh_2[node_neigh]) >= 1:
                         for node_neigh_neigh in neigh_2[node_neigh]:
                             for vehicle in range(nb_vehicle):
-                                constraint_triangle[cnt_triangle] = model.addConstr(
+                                constraint_triangle[cnt_triangle] = model.addLConstr(
                                     variables_edges[vehicle][(node, node_neigh)]
                                     + variables_edges[vehicle][
                                         (node_neigh, node_neigh_neigh)
@@ -741,7 +692,7 @@ class LinearFlowSolver(GurobiMilpSolver):
             constraints_order = {}
             for vehicle in range(nb_vehicle):
                 node_origin = self.problem.origin_vehicle[name_vehicles[vehicle]]
-                constraints_order[node_origin] = model.addConstr(
+                constraints_order[node_origin] = model.addLConstr(
                     lhs=variables_order[node_origin],
                     sense=grb.GRB.EQUAL,
                     rhs=0,
@@ -754,7 +705,7 @@ class LinearFlowSolver(GurobiMilpSolver):
                 if node not in constraints_order:
                     for vehicle, edge in edges_in_all_vehicles[node]:
                         if use_big_m:
-                            constraints_order[node] = model.addConstr(
+                            constraints_order[node] = model.addLConstr(
                                 variables_order[node]
                                 >= variables_order[edge[0]]
                                 + 1
@@ -771,7 +722,7 @@ class LinearFlowSolver(GurobiMilpSolver):
         for vehicle in range(nb_vehicle):
             for node in [self.problem.origin_vehicle[name_vehicles[vehicle]]]:
                 if node in edges_in_all_vehicles:
-                    constraints_in_flow[node] = model.addConstr(
+                    constraints_in_flow[node] = model.addLConstr(
                         grb.quicksum(
                             [
                                 variables_edges[x[0]][x[1]]
@@ -789,20 +740,6 @@ class LinearFlowSolver(GurobiMilpSolver):
                 variables_edges=variables_edges,
                 edges_in_all_vehicles=edges_in_all_vehicles,
                 edges_out_all_vehicles=edges_out_all_vehicles,
-            )
-
-        edges_validating_constraint = kwargs.get("edges_validating_constraint", False)
-        if edges_validating_constraint:
-            self.custom_constraint(
-                model=model,
-                nodes_to_visit=set([n for n in nodes_of_interest if n >= 366]),  # type: ignore
-                nodes_to_validate=set(range(6, 366)),
-                variables_edges=variables_edges,
-                edges_in_all_vehicles=edges_in_all_vehicles,
-                edges_out_all_vehicles=edges_out_all_vehicles,
-                edges_validating=kwargs.get("edges_validating", {}),
-                edges_in_per_vehicle=edges_in_per_vehicles,
-                edges_out_per_vehicle=edges_out_per_vehicles,
             )
         if one_visit_per_cluster:
             self.one_visit_per_clusters(
@@ -1146,7 +1083,7 @@ class LinearFlowSolverVehicleType(GurobiMilpSolver):
     ) -> None:
         constraint_one_visit = {}
         for node in nodes_of_interest:
-            constraint_one_visit[node] = model.addConstr(
+            constraint_one_visit[node] = model.addLConstr(
                 lhs=grb.quicksum(
                     [variables_edges[x[0]][x[1]] for x in edges_in_all_vehicles[node]]
                 ),
@@ -1154,7 +1091,7 @@ class LinearFlowSolverVehicleType(GurobiMilpSolver):
                 rhs=1,
                 name="visit_" + str(node),
             )
-            constraint_one_visit[(node, "out")] = model.addConstr(
+            constraint_one_visit[(node, "out")] = model.addLConstr(
                 lhs=grb.quicksum(
                     [variables_edges[x[0]][x[1]] for x in edges_out_all_vehicles[node]]
                 ),
@@ -1174,7 +1111,7 @@ class LinearFlowSolverVehicleType(GurobiMilpSolver):
     ) -> None:
         constraint_cluster = {}
         for cluster in self.problem.clusters_to_node:
-            constraint_cluster[cluster] = model.addConstr(
+            constraint_cluster[cluster] = model.addLConstr(
                 lhs=grb.quicksum(
                     [
                         variables_edges[x[0]][x[1]]
@@ -1187,7 +1124,7 @@ class LinearFlowSolverVehicleType(GurobiMilpSolver):
                 rhs=1,
                 name="visit_" + str(cluster),
             )
-            constraint_cluster[(cluster, "out")] = model.addConstr(
+            constraint_cluster[(cluster, "out")] = model.addLConstr(
                 lhs=grb.quicksum(
                     [
                         variables_edges[x[0]][x[1]]
@@ -1232,13 +1169,13 @@ class LinearFlowSolverVehicleType(GurobiMilpSolver):
         }
         for v in self.problem.origin_vehicle:
             for r in resources_variable_coming:
-                model.addConstr(
+                model.addLConstr(
                     resources_variable_coming[r][self.problem.origin_vehicle[v]]
                     == self.problem.resources_flow_node[self.problem.origin_vehicle[v]][
                         r
                     ]
                 )
-                model.addConstr(
+                model.addLConstr(
                     resources_variable_leaving[r][self.problem.origin_vehicle[v]]
                     == self.problem.resources_flow_node[self.problem.origin_vehicle[v]][
                         r
@@ -1261,7 +1198,7 @@ class LinearFlowSolverVehicleType(GurobiMilpSolver):
                     )
                     index += 1
                 if node not in all_origin:
-                    model.addConstr(
+                    model.addLConstr(
                         resources_variable_leaving[r][node]
                         == resources_variable_coming[r][node]
                         + self.problem.resources_flow_node[node][r]
@@ -1296,7 +1233,7 @@ class LinearFlowSolverVehicleType(GurobiMilpSolver):
         }
         for v in consumption_per_vehicle:
             for r in consumption_per_vehicle[v]:
-                model.addConstr(
+                model.addLConstr(
                     consumption_per_vehicle[v][r]
                     == grb.quicksum(
                         variables_edges[v][e]
@@ -1309,7 +1246,7 @@ class LinearFlowSolverVehicleType(GurobiMilpSolver):
                     )
                 )
                 # redundant :
-                model.addConstr(
+                model.addLConstr(
                     lhs=consumption_per_vehicle[v][r],
                     sense=grb.GRB.LESS_EQUAL,
                     rhs=self.problem.capacities[v][r][1],
@@ -1337,7 +1274,7 @@ class LinearFlowSolverVehicleType(GurobiMilpSolver):
             for node in edges_in_all_vehicles
         }
         for v in self.problem.origin_vehicle:
-            model.addConstr(time_coming[self.problem.origin_vehicle[v]] == 0)
+            model.addLConstr(time_coming[self.problem.origin_vehicle[v]] == 0)
         index = 0
         all_origin = set(self.problem.origin_vehicle.values())
         for node in time_leaving:
@@ -1354,7 +1291,7 @@ class LinearFlowSolverVehicleType(GurobiMilpSolver):
                 )
                 index += 1
             if node not in all_origin:
-                model.addConstr(
+                model.addLConstr(
                     time_leaving[node]
                     >= time_coming[node] + self.problem.time_delta_node[node]
                 )
@@ -1400,7 +1337,7 @@ class LinearFlowSolverVehicleType(GurobiMilpSolver):
         for group_vehicle in variables_edges:
             for e in variables_edges[group_vehicle]:
                 if e[0] == e[1]:
-                    constraint_loop[(group_vehicle, e)] = model.addConstr(
+                    constraint_loop[(group_vehicle, e)] = model.addLConstr(
                         variables_edges[group_vehicle][e] == 0,
                         name="loop_" + str((group_vehicle, e)),
                     )
@@ -1444,7 +1381,7 @@ class LinearFlowSolverVehicleType(GurobiMilpSolver):
                 name_vehicles[representative_vehicle]
             ]
             same_node = node_origin == node_target
-            constraints_out_flow[(group_vehicle, node_origin)] = model.addConstr(
+            constraints_out_flow[(group_vehicle, node_origin)] = model.addLConstr(
                 lhs=grb.quicksum(
                     [
                         variables_edges[group_vehicle][edge]
@@ -1458,7 +1395,7 @@ class LinearFlowSolverVehicleType(GurobiMilpSolver):
                 sense=grb.GRB.LESS_EQUAL,
                 name="outflow_" + str((group_vehicle, node_origin)),
             )  # Avoid loop
-            constraints_in_flow[(group_vehicle, node_target)] = model.addConstr(
+            constraints_in_flow[(group_vehicle, node_target)] = model.addLConstr(
                 lhs=grb.quicksum(
                     [
                         variables_edges[group_vehicle][edge]
@@ -1473,7 +1410,7 @@ class LinearFlowSolverVehicleType(GurobiMilpSolver):
                 name="inflow_" + str((group_vehicle, node_target)),
             )  # Avoid loop
 
-            constraints_out_flow[(group_vehicle, node_target)] = model.addConstr(
+            constraints_out_flow[(group_vehicle, node_target)] = model.addLConstr(
                 lhs=grb.quicksum(
                     [
                         variables_edges[group_vehicle][edge]
@@ -1503,7 +1440,7 @@ class LinearFlowSolverVehicleType(GurobiMilpSolver):
                 if same_node or node not in {node_origin, node_target}:
                     constraints_flow_conservation[
                         (group_vehicle, node)
-                    ] = model.addConstr(
+                    ] = model.addLConstr(
                         lhs=grb.quicksum(
                             [
                                 variables_edges[group_vehicle][e]
@@ -1527,7 +1464,7 @@ class LinearFlowSolverVehicleType(GurobiMilpSolver):
 
                     constraints_flow_conservation[
                         (group_vehicle, node, "in")
-                    ] = model.addConstr(
+                    ] = model.addLConstr(
                         lhs=grb.quicksum(
                             [
                                 variables_edges[group_vehicle][e]
@@ -1628,6 +1565,7 @@ class LinearFlowSolverVehicleType(GurobiMilpSolver):
         path_dict = build_path_from_vehicle_type_flow(
             result_from_retrieve=res, problem=self.problem
         )
+        print(path_dict)
         res["path_dict"] = cast(Dict[Hashable, Any], path_dict)
 
         return TemporaryResult()  # type: ignore # TO BE COMPLETED
@@ -2188,7 +2126,7 @@ class SubtourAddingConstraint:
                                 ):
                                     keys = [(e0, e1) for e0, e1 in zip(pp[:-1], pp[1:])]
                                     c += [
-                                        self.linear_solver.model.addConstr(
+                                        self.linear_solver.model.addLConstr(
                                             grb.quicksum(
                                                 [
                                                     self.linear_solver.variable_decisions[
@@ -2407,7 +2345,7 @@ class ConstraintHandlerOrWarmStart:
                         ):
                             self.linear_solver.constraint_on_edge[
                                 iedge
-                            ] = self.linear_solver.model.addConstr(
+                            ] = self.linear_solver.model.addLConstr(
                                 self.linear_solver.variable_decisions[
                                     "variables_edges"
                                 ][v][e]
@@ -2872,7 +2810,7 @@ def update_model_cluster_tsp(
                     ]
                 else:
                     list_constraints += [
-                        lp_solver.model.addConstr(
+                        lp_solver.model.addLConstr(
                             grb.quicksum(
                                 [
                                     lp_solver.variable_decisions["variables_edges"][
@@ -2905,7 +2843,7 @@ def update_model_cluster_tsp(
                     ]
                 else:
                     list_constraints += [
-                        lp_solver.model.addConstr(
+                        lp_solver.model.addLConstr(
                             grb.quicksum(
                                 [
                                     lp_solver.variable_decisions["variables_edges"][
@@ -2953,7 +2891,7 @@ def update_model(
                 problem.target_vehicle[v] in s[0] for v in problem.origin_vehicle
             ):
                 list_constraints += [
-                    lp_solver.model.addConstr(
+                    lp_solver.model.addLConstr(
                         grb.quicksum(
                             [
                                 lp_solver.variable_decisions["variables_edges"][e[0]][
@@ -2970,7 +2908,7 @@ def update_model(
                 problem.origin_vehicle[v] in s[0] for v in problem.origin_vehicle
             ):
                 list_constraints += [
-                    lp_solver.model.addConstr(
+                    lp_solver.model.addLConstr(
                         grb.quicksum(
                             [
                                 lp_solver.variable_decisions["variables_edges"][e[0]][
@@ -2998,7 +2936,7 @@ def update_model(
                 }
                 for vehicle in range(lp_solver.problem.number_vehicle):
                     node_origin = lp_solver.problem.origin_vehicle[vehicle]
-                    constraints_order[node_origin] = lp_solver.model.addConstr(
+                    constraints_order[node_origin] = lp_solver.model.addLConstr(
                         lhs=variable_order[node_origin],
                         sense=grb.GRB.EQUAL,
                         rhs=0,
@@ -3016,7 +2954,7 @@ def update_model(
                             if edge[0] == edge[1]:
                                 continue
                             if use_big_m:
-                                constraints_order[node] = lp_solver.model.addConstr(
+                                constraints_order[node] = lp_solver.model.addLConstr(
                                     variable_order[node]
                                     >= variable_order[edge[0]]
                                     + 1
@@ -3119,7 +3057,7 @@ def update_model_lazy(
             }
             for vehicle in range(lp_solver.problem.number_vehicle):
                 node_origin = lp_solver.problem.origin_vehicle[vehicle]
-                constraints_order[node_origin] = lp_solver.model.addConstr(
+                constraints_order[node_origin] = lp_solver.model.addLConstr(
                     lhs=variable_order[node_origin], sense=grb.GRB.EQUAL, rhs=0
                 )
             lp_solver.variable_order = variable_order

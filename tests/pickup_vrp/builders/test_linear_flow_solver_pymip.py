@@ -197,12 +197,8 @@ def test_selective_vrp_with_time():
     assert isinstance(res, ResultStorage)
     sol = res.get_best_solution()
     assert isinstance(sol, GPDPSolution)
-    print(sol.times)
-    print(gpdp.clusters_dict)
-    assert (
-        len(sol.times) == nb_clusters + 2 * nb_vehicles
-    )  # nodes + origin and target of each vehicle
     # check origin + target + times increasing for each trajectory
+    nodes_visited = set()
     for v, trajectory in sol.trajectories.items():
         assert trajectory[0] == gpdp.origin_vehicle[v]
         assert trajectory[-1] == gpdp.target_vehicle[v]
@@ -212,3 +208,14 @@ def test_selective_vrp_with_time():
                 + gpdp.time_delta[trajectory[i]][trajectory[i + 1]]
                 <= sol.times[trajectory[i + 1]]
             )
+        nodes_visited.update(trajectory)
+    print(sol.trajectories.values())
+    for cluster in gpdp.clusters_to_node:
+        nodes_in_cluster = gpdp.clusters_to_node[cluster]
+        print("nodes in cluster , ", nodes_in_cluster)
+        print("nodes visited : ", nodes_visited)
+        visited = [n for n in nodes_in_cluster if n in nodes_visited]
+        print("intersection ", visited)
+        assert len(visited) > 0
+    nb_nodes_visited = sum([len(traj) for traj in sol.trajectories.values()])
+    assert len(sol.times) == nb_nodes_visited

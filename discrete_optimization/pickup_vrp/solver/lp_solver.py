@@ -119,7 +119,6 @@ def retrieve_ith_solution(
             value = variable_decisions["variables_edges"][vehicle][edge].getAttr("Xn")
             if value <= 0.1:
                 continue
-            print("value  =", value)
             xsolution[vehicle][edge] = 1
     results["variables_edges"] = cast(Dict[Hashable, Any], xsolution)
     for key in variable_decisions:
@@ -1565,7 +1564,6 @@ class LinearFlowSolverVehicleType(GurobiMilpSolver):
         path_dict = build_path_from_vehicle_type_flow(
             result_from_retrieve=res, problem=self.problem
         )
-        print(path_dict)
         res["path_dict"] = cast(Dict[Hashable, Any], path_dict)
 
         return TemporaryResult()  # type: ignore # TO BE COMPLETED

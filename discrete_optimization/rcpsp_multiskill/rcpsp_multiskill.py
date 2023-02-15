@@ -2161,6 +2161,13 @@ class MS_RCPSPModel(Problem):
         else:
             return self.resources_availability[res]
 
+    def can_be_preempted(self, task):
+        return self.preemptive_indicator[task]
+
+    @property
+    def resources(self):
+        return self.resources_availability
+
     def update_functions(self):
         self.func_sgs, self.func_sgs_partial = create_np_data_and_jit_functions(
             rcpsp_problem=self

@@ -1436,7 +1436,7 @@ class CP_MRCPSP_MZN_PREEMMPTIVE(CP_RCPSP_MZN_PREEMMPTIVE):
         )
         keys += ["max_preempted"]
 
-        n_res = len(list(self.rcpsp_model.resources.keys()))
+        n_res = len(list(self.rcpsp_model.resources_list))
         instance["n_res"] = n_res
         keys += ["n_res"]
 

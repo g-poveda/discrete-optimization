@@ -1496,7 +1496,7 @@ class CP_MRCPSP_MZN_PREEMMPTIVE(CP_RCPSP_MZN_PREEMMPTIVE):
         instance["rtype"] = rtype
         keys += ["rtype"]
         if not self.calendar:
-            rc = [int(self.rcpsp_model.resources[x]) for x in sorted_resources]
+            rc = [int(self.rcpsp_model.get_max_resource_capacity(x)) for x in sorted_resources]
         else:
             rc = [int(max(self.rcpsp_model.resources[x])) for x in sorted_resources]
         if self.calendar and model_type == "multi-preemptive-calendar":

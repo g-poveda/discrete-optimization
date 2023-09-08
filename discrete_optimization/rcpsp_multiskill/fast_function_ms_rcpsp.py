@@ -582,9 +582,8 @@ def sgs_fast_ms_preemptive(
                     reached_t is not None
                     and preemptive_tag[act_id] == 1
                     and (
-                        True
-                        or reached_t + 1 - current_min_time
-                        >= duration_array[act_id, modes_array[act_id]] / 8
+                        reached_t + 1 - current_min_time
+                        >= duration_array[act_id, modes_array[act_id]] / 5
                         or reached_end
                     )
                 ):

@@ -14,6 +14,7 @@ from minizinc import Instance, Model, Solver
 from discrete_optimization.generic_tools.cp_tools import (
     CPSolverName,
     MinizincCPSolver,
+    ObjectOutputMinizincStoreTime,
     ParametersCP,
     SignEnum,
     map_cp_solver_name,
@@ -181,6 +182,9 @@ class CP_RCPSP_MZN(MinizincCPSolver, SolverRCPSP):
         model = Model(files_mzn[model_type])
         if custom_output_type:
             model.output_type = RCPSPSolCP
+            self.custom_output_type = True
+        if self.logging_statistic:
+            model.output_type = ObjectOutputMinizincStoreTime
             self.custom_output_type = True
         solver = Solver.lookup(map_cp_solver_name[self.cp_solver_name])
         instance = Instance(solver, model)
@@ -352,12 +356,12 @@ class CP_RCPSP_MZN(MinizincCPSolver, SolverRCPSP):
         starts = []
         if intermediate_solutions:
             for i in range(len(result)):
-                if isinstance(result[i], RCPSPSolCP):
+                if self.custom_output_type:
                     starts.append(result[i].dict["s"])
                 else:
                     starts.append(result[i, "s"])
         else:
-            if isinstance(result, RCPSPSolCP):
+            if self.custom_output_type:
                 starts.append(result.dict["s"])
             else:
                 starts = [result["s"]]
@@ -671,14 +675,14 @@ class CP_MRCPSP_MZN(MinizincCPSolver, SolverRCPSP):
         mruns = []
         if intermediate_solutions:
             for i in range(len(result)):
-                if isinstance(result[i], RCPSPSolCP):
+                if self.custom_output_type:
                     starts.append(result[i].dict["start"])
                     mruns.append(result[i].dict["mrun"])
                 else:
                     starts.append(result[i, "start"])
                     mruns.append(result[i, "mrun"])
         else:
-            if isinstance(result, RCPSPSolCP):
+            if self.custom_output_type:
                 starts.append(result.dict["start"])
                 mruns.append(result.dict["mrun"])
             else:
@@ -864,14 +868,14 @@ class CP_MRCPSP_MZN_WITH_FAKE_TASK(CP_MRCPSP_MZN):
         mruns = []
         if intermediate_solutions:
             for i in range(len(result)):
-                if isinstance(result[i], RCPSPSolCP):
+                if self.custom_output_type:
                     starts.append(result[i].dict["start"])
                     mruns.append(result[i].dict["mrun"])
                 else:
                     starts.append(result[i, "start"])
                     mruns.append(result[i, "mrun"])
         else:
-            if isinstance(result, RCPSPSolCP):
+            if self.custom_output_type:
                 starts.append(result.dict["start"])
                 mruns.append(result.dict["mrun"])
             else:
@@ -1173,7 +1177,7 @@ class CP_MRCPSP_MZN_PREEMMPTIVE(MinizincCPSolver, SolverRCPSP):
         index_best = 0
         if intermediate_solutions:
             for i in range(len(result)):
-                if isinstance(result[i], RCPSPSolCP):
+                if self.custom_output_type:
                     starts.append(result[i].dict["s"])
                     starts_preemptive.append(result[i].dict["s_preemptive"])
                     duration_preemptive.append(result[i].dict["d_preemptive"])
@@ -1186,7 +1190,7 @@ class CP_MRCPSP_MZN_PREEMMPTIVE(MinizincCPSolver, SolverRCPSP):
                     modes.append(result[i, "mrun"])
                     objectives_cp.append(result[i, "objective"])
         else:
-            if isinstance(result, RCPSPSolCP):
+            if self.custom_output_type:
                 starts.append(result.dict["s"])
                 starts_preemptive.append(result.dict["s_preemptive"])
                 duration_preemptive.append(result.dict["d_preemptive"])
@@ -1612,7 +1616,7 @@ class CP_RCPSP_MZN_PREEMMPTIVE(CP_MRCPSP_MZN_PREEMMPTIVE):
         index_best = 0
         if intermediate_solutions:
             for i in range(len(result)):
-                if isinstance(result[i], RCPSPSolCP):
+                if self.custom_output_type:
                     starts.append(result[i].dict["s"])
                     starts_preemptive.append(result[i].dict["s_preemptive"])
                     duration_preemptive.append(result[i].dict["d_preemptive"])
@@ -1624,7 +1628,7 @@ class CP_RCPSP_MZN_PREEMMPTIVE(CP_MRCPSP_MZN_PREEMMPTIVE):
                     objectives_cp.append(result[i, "objective"])
 
         else:
-            if isinstance(result, RCPSPSolCP):
+            if self.custom_output_type:
                 starts.append(result.dict["s"])
                 starts_preemptive.append(result.dict["s_preemptive"])
                 duration_preemptive.append(result.dict["d_preemptive"])

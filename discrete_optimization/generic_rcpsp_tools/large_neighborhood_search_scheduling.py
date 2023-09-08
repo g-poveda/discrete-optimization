@@ -2,6 +2,7 @@
 #  This source code is licensed under the MIT license found in the
 #  LICENSE file in the root directory of this source tree.
 
+import logging
 from enum import Enum
 from typing import Optional
 
@@ -59,6 +60,8 @@ from discrete_optimization.rcpsp_multiskill.solvers.cp_solvers import (
 from discrete_optimization.rcpsp_multiskill.solvers.lns_post_process_rcpsp import (
     PostProMSRCPSP,
 )
+
+logging.basicConfig(level=logging.INFO)
 
 
 class ConstraintHandlerType(Enum):

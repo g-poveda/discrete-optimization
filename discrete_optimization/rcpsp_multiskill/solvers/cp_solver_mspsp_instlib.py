@@ -352,7 +352,7 @@ class CP_MSPSP_MZN(MinizincCPSolver):
         # array[ACT,RESOURCE,SKILL] of var bool: contrib; % skill contribution assignment
         if intermediate_solutions:
             for i in range(len(result)):
-                if isinstance(result[i], MS_RCPSPSolCP):
+                if self.custom_output_type:
                     starts += [result[i].dict["start"]]
                     mruns += [[1] * len(self.rcpsp_model.tasks_list)]
                     units_used += [result[i].dict["assign"]]
@@ -363,7 +363,7 @@ class CP_MSPSP_MZN(MinizincCPSolver):
                     units_used += [result[i, "assign"]]
                     objectives_cp += [result[i, "objective"]]
         else:
-            if isinstance(result, MS_RCPSPSolCP):
+            if self.custom_output_type:
                 starts += [result.dict["start"]]
                 mruns += [[1] * len(self.rcpsp_model.tasks_list)]
                 units_used += [result.dict["unit_used"]]
@@ -387,7 +387,7 @@ class CP_MSPSP_MZN(MinizincCPSolver):
                 for task in range(len(unit_used)):
                     task_id = self.rcpsp_model.tasks_list[task]
                     if unit_used[task][w] == 1:
-                        if isinstance(result[index_solution], MS_RCPSPSolCP):
+                        if self.custom_output_type:
                             if "contrib" in result[index_solution].dict:
                                 intersection = [
                                     skills_list[i]

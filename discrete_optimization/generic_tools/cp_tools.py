@@ -11,7 +11,8 @@ import logging
 from abc import abstractmethod
 from datetime import timedelta
 from enum import Enum
-from typing import Any, Dict, Optional, Union
+from time import perf_counter_ns
+from typing import Any, Dict, List, Optional, Union
 
 from minizinc import Instance, Result, Status
 
@@ -202,11 +203,61 @@ class CPSolver(SolverDO):
         return self.status_solver
 
 
+class MinizincLoggingStorage:
+    def __init__(
+        self,
+        nano_sec_start_init: int = None,
+        nano_sec_end_init: int = None,
+        nano_sec_launch_solve: int = None,
+        nano_sec_end_solve: int = None,
+    ):
+        self.nano_sec_start_init = nano_sec_start_init
+        self.nano_sec_end_init = nano_sec_end_init
+        self.nano_sec_launch_solve = nano_sec_launch_solve
+        self.nano_sec_end_solve = nano_sec_end_solve
+        self.datas = {}
+
+
+class ObjectOutputMinizinc:
+    objective: int
+    __output_item: Optional[str] = None
+
+    def __init__(self, objective, _output_item, **kwargs):
+        self.objective = objective
+        self.dict = kwargs
+        logger.info(f"One solution {self.objective}")
+        logger.info(f"Output {_output_item}")
+
+    def check(self) -> bool:
+        return True
+
+
+class ObjectOutputMinizincStoreTime:
+    objective: int
+    time_ns: int
+    __output_item: Optional[str] = None
+
+    def __init__(self, objective, _output_item, **kwargs):
+        self.objective = objective
+        self.dict = kwargs
+        self.time_ns = perf_counter_ns()
+        logger.info(f"One solution {self.objective}")
+        logger.info(f"Output {_output_item}")
+        logger.info(f"Storing the time.")
+
+    def check(self) -> bool:
+        return True
+
+
 class MinizincCPSolver(CPSolver):
     """CP solver wrapping a minizinc solver."""
 
     instance: Optional[Instance] = None
     silent_solve_error: bool = False
+    logging_statistic: bool = True
+    custom_output_type: bool = False
+    minizinc_logging_storage: Optional[MinizincLoggingStorage] = None
+
     """If True and `solve` should raise an error, a warning is raised instead and an empty ResultStorage returned."""
 
     def solve(
@@ -222,6 +273,16 @@ class MinizincCPSolver(CPSolver):
                 )
         limit_time_s = parameters_cp.time_limit
         intermediate_solutions = parameters_cp.intermediate_solution
+        if self.logging_statistic:
+            self.instance.output_type = ObjectOutputMinizincStoreTime
+            self.custom_output_type = True
+            nano_sec_launch_solve = perf_counter_ns()
+            if self.minizinc_logging_storage is None:
+                self.minizinc_logging_storage = MinizincLoggingStorage()
+            if self.minizinc_logging_storage is not None:
+                self.minizinc_logging_storage.nano_sec_launch_solve = (
+                    nano_sec_launch_solve
+                )
         if self.silent_solve_error:
             try:
                 result = self.instance.solve(
@@ -248,8 +309,20 @@ class MinizincCPSolver(CPSolver):
                 free_search=parameters_cp.free_search,
                 optimisation_level=parameters_cp.optimisation_level,
             )
+        if self.logging_statistic:
+            nano_sec_end_solve = perf_counter_ns()
+            if self.minizinc_logging_storage is not None:
+                self.minizinc_logging_storage.nano_sec_end_solve = nano_sec_end_solve
         logger.info("Solving finished")
         logger.debug(result.status)
         logger.debug(result.statistics)
         self.status_solver = map_mzn_status_to_do_status[result.status]
+        if self.logging_statistic:
+            if self.minizinc_logging_storage is not None:
+                brut_res: List[ObjectOutputMinizincStoreTime] = (
+                    result if intermediate_solutions else [result]
+                )
+                self.minizinc_logging_storage.datas["sols"] = [
+                    (x.time_ns, x.objective) for x in brut_res
+                ]
         return self.retrieve_solutions(result=result, parameters_cp=parameters_cp)

@@ -175,18 +175,16 @@ class MS_RCPSPSolCP:
     def __init__(self, objective, _output_item, **kwargs):
         self.objective = objective
         self.dict = kwargs
-        logger.debug(f"One solution {self.objective}")
+        logger.info(f"One solution {self.objective}")
         if "nb_preemption_subtasks" in self.dict:
-            logger.debug(
-                ("nb_preemption_subtasks", self.dict["nb_preemption_subtasks"])
-            )
+            logger.info(("nb_preemption_subtasks", self.dict["nb_preemption_subtasks"]))
         if "nb_small_tasks" in self.dict:
-            logger.debug(("nb_small_tasks", self.dict["nb_small_tasks"]))
+            logger.info(("nb_small_tasks", self.dict["nb_small_tasks"]))
         if "res_load" in self.dict:
-            logger.debug(("res_load ", self.dict["res_load"]))
+            logger.info(("res_load ", self.dict["res_load"]))
         keys = [k for k in self.dict if "penalty" in k]
-        logger.debug("".join([str(k) + " : " + str(self.dict[k]) + "\n" for k in keys]))
-        logger.debug(_output_item)
+        logger.info("".join([str(k) + " : " + str(self.dict[k]) + "\n" for k in keys]))
+        logger.info(_output_item)
 
     def check(self) -> bool:
         return True
@@ -669,7 +667,7 @@ class CP_MS_MRCPSP_MZN(MinizincCPSolver):
         index_best = 0
         if intermediate_solutions:
             for i in range(len(result)):
-                if isinstance(result[i], MS_RCPSPSolCP):
+                if self.custom_output_type:
                     starts += [result[i].dict["start"]]
                     mruns += [result[i].dict["mrun"]]
                     units_used += [result[i].dict["unit_used"]]
@@ -680,7 +678,7 @@ class CP_MS_MRCPSP_MZN(MinizincCPSolver):
                     units_used += [result[i, "unit_used"]]
                     objectives_cp += [result[i, "objective"]]
         else:
-            if isinstance(result, MS_RCPSPSolCP):
+            if self.custom_output_type:
                 starts += [result.dict["start"]]
                 mruns += [result.dict["mrun"]]
                 units_used += [result.dict["unit_used"]]
@@ -705,7 +703,7 @@ class CP_MS_MRCPSP_MZN(MinizincCPSolver):
                     task_id = self.rcpsp_model.tasks_list[task]
                     if unit_used[w][task] == 1:
                         if (
-                            isinstance(result[index_solution], MS_RCPSPSolCP)
+                            self.custom_output_type
                             and "contrib" in result[index_solution].dict
                         ):  # model="ms_no_multitasking"
                             intersection = [
@@ -1199,7 +1197,7 @@ class CP_MS_MRCPSP_MZN_PREEMPTIVE(MinizincCPSolver):
         index_best = 0
         if intermediate_solutions:
             for i in range(len(result)):
-                if isinstance(result[i], MS_RCPSPSolCP):
+                if self.custom_output_type:
                     starts += [result[i].dict["s"]]
                     starts_preemptive += [result[i].dict["s_preemptive"]]
                     duration_preemptive += [result[i].dict["d_preemptive"]]
@@ -1216,7 +1214,7 @@ class CP_MS_MRCPSP_MZN_PREEMPTIVE(MinizincCPSolver):
                     units_used_preemptive += [result[i, "unit_used_preemptive"]]
                     objectives_cp += [result[i, "objective"]]
         else:
-            if isinstance(result, MS_RCPSPSolCP):
+            if self.custom_output_type:
                 starts += [result.dict["s"]]
                 starts_preemptive += [result.dict["s_preemptive"]]
                 duration_preemptive += [result.dict["d_preemptive"]]
@@ -1228,7 +1226,7 @@ class CP_MS_MRCPSP_MZN_PREEMPTIVE(MinizincCPSolver):
                 starts = [result["s"]]
                 starts_preemptive = [result["s_preemptive"]]
                 duration_preemptive = [result["d_preemptive"]]
-                mruns += [result.dict["mrun"]]
+                mruns += [result["mrun"]]
                 units_used += [result["unit_used"]]
                 units_used_preemptive += [result["unit_used_preemptive"]]
                 objectives_cp += [result["objective"]]

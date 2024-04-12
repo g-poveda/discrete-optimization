@@ -20,6 +20,7 @@ from discrete_optimization.generic_tools.cp_tools import (
     MinizincCPSolver,
     ParametersCP,
     SignEnum,
+    find_right_minizinc_solver_name,
     map_cp_solver_name,
 )
 from discrete_optimization.generic_tools.do_problem import (
@@ -460,7 +461,7 @@ class CP_MS_MRCPSP_MZN(MinizincCPSolver):
         if custom_output_type:
             model.output_type = MS_RCPSPSolCP
             self.custom_output_type = True
-        solver = Solver.lookup(map_cp_solver_name[self.cp_solver_name])
+        solver = Solver.lookup(find_right_minizinc_solver_name(self.cp_solver_name))
         resources_list = self.problem.resources_list
         self.resources_index = resources_list
         instance = Instance(solver, model)
@@ -990,7 +991,7 @@ class CP_MS_MRCPSP_MZN_PREEMPTIVE(MinizincCPSolver):
         if custom_output_type:
             model.output_type = MS_RCPSPSolCP
             self.custom_output_type = True
-        solver = Solver.lookup(map_cp_solver_name[self.cp_solver_name])
+        solver = Solver.lookup(find_right_minizinc_solver_name(self.cp_solver_name))
         resources_list = self.problem.resources_list
         self.resources_index = resources_list
         instance = Instance(solver, model)
@@ -2197,7 +2198,7 @@ class PrecomputeEmployeesForTasks:
         ) = cluster_employees_to_resource_types(self.ms_rcpsp_model)
 
     def init_model(self, **kwargs):
-        solver = Solver.lookup(map_cp_solver_name[self.cp_solver_name])
+        solver = Solver.lookup(find_right_minizinc_solver_name(self.cp_solver_name))
         model = Model(files_mzn["compute_worker_for_tasks"])
         instance = Instance(solver, model)
         instance["one_ressource_per_task"] = kwargs.get("one_ressource_per_task", False)

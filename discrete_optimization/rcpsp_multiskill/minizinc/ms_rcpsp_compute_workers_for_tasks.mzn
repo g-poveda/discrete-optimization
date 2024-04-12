@@ -10,6 +10,7 @@ bool: exact_skills_need;
     % Number of activities (tasks)
 int: n_tasks;
 int: nb_act = n_tasks;
+set of int: Act = 1..nb_act;
 
     % Number of modes (optional activities)
 int: n_opt;
@@ -78,7 +79,7 @@ constraint forall(wt in WORKER_TYPE, i in Act)(worker_type_used[wt, i]<=capacity
 % Prune.
 constraint forall(wt in WORKER_TYPE, i in Act)(
     let{var set of Skill: sk = {skl | skl in Skill
-        where skills_worker_type[wt, skl]>0 /\ array_skills_required[skl, i]>0}}
+        where skills_worker_type[wt, skl]>0}} % /\ array_skills_required[skl, i]>0}}
         in(
             if sk=={} then
                 worker_type_used[wt, i]=0
@@ -116,7 +117,7 @@ constraint
 
 % Prune.
 constraint forall(w in Units, i in Act)(
-    let{var set of Skill: sk = {skl | skl in Skill where skillunits[w, skl]>0 /\ array_skills_required[skl, i]>0}}
+    let{var set of int: sk = {skl | skl in Skill where skillunits[w, skl]>0}} % /\ array_skills_required[skl, i]>0}}
         in(
             if sk=={} then
                 unit_used[w, i]=0
@@ -156,7 +157,6 @@ constraint
     );
 
 
-set of int: Act = 1..nb_act;    % Set of activities
 set of int: Mod = 1..nb_mod;    % Set of modes
 int: min_mrreq = if nb_res>0 then min(k in Res, m in Mod)(mrreq[k,m]) else 0 endif;
 int: max_mrreq = if nb_res>0 then max(k in Res, m in Mod)(mrreq[k,m]) else 0 endif;

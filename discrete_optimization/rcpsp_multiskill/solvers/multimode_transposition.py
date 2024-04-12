@@ -3,7 +3,7 @@
 #  LICENSE file in the root directory of this source tree.
 
 import logging
-from typing import Dict, Set, Union
+from typing import Dict, Set, Type, Union
 
 import numpy as np
 
@@ -19,6 +19,7 @@ from discrete_optimization.rcpsp.rcpsp_model_preemptive import (
     RCPSPSolutionPreemptive,
 )
 from discrete_optimization.rcpsp.rcpsp_solution import RCPSPSolution
+from discrete_optimization.rcpsp.rcpsp_solvers import solve
 from discrete_optimization.rcpsp_multiskill.multiskill_to_rcpsp import MultiSkillToRCPSP
 from discrete_optimization.rcpsp_multiskill.rcpsp_multiskill import (
     MS_RCPSPModel,
@@ -45,7 +46,7 @@ class MultimodeTranspositionSolver(SolverDO):
         multimode_problem: Union[RCPSPModel, RCPSPModelPreemptive] = None,
         worker_type_to_worker: Dict[str, Set[Union[str, int]]] = None,
         params_objective_function: ParamsObjectiveFunction = None,
-        solver_multimode_rcpsp: SolverDO = None,
+        solver_multimode_rcpsp: Type[SolverDO] = None,
     ):
         super().__init__(
             problem=problem, params_objective_function=params_objective_function
@@ -64,7 +65,9 @@ class MultimodeTranspositionSolver(SolverDO):
             )
             self.multimode_problem = rcpsp_model
             self.worker_type_to_worker = algo.worker_type_to_worker
-        result_store = self.solver_multimode_rcpsp.solve(**kwargs)
+        result_store = solve(
+            method=self.solver_multimode_rcpsp, problem=self.multimode_problem, **kwargs
+        )
         solution, fit = result_store.get_best_solution_fit()
         solution: RCPSPSolutionPreemptive = solution
         res = rebuild_multiskill_solution_cp_based(

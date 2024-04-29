@@ -2,6 +2,7 @@
 #  This source code is licensed under the MIT license found in the
 #  LICENSE file in the root directory of this source tree.
 
+from discrete_optimization.datasets import get_data_home
 from discrete_optimization.rcpsp.rcpsp_parser import get_data_available, parse_file
 
 
@@ -165,3 +166,10 @@ def test_parsing_mm():
     assert rcpsp_model.resources == {"R1": 10, "R2": 13, "N1": 29, "N2": 30}
     assert rcpsp_model.non_renewable_resources == ["N1", "N2"]
     assert rcpsp_model.horizon == 77
+
+
+def test_parsing_rcp():
+    data_folder = f"{get_data_home()}/rcpsp/RG30/Set 1/"
+    files = get_data_available(data_folder=data_folder)
+    files = [f for f in files if "Pat8.rcp" in f]  # Single mode RCPSP
+    assert len(files) > 0

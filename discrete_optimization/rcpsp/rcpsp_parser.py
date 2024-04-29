@@ -27,7 +27,9 @@ def get_data_available(
 
     try:
         files = [
-            f for f in os.listdir(data_folder) if f.endswith(".sm") or f.endswith(".mm")
+            f
+            for f in os.listdir(data_folder)
+            if f.endswith(".sm") or f.endswith(".mm") or f.endswith(".rcp")
         ]
     except FileNotFoundError:
         files = []

@@ -171,8 +171,36 @@ def test_parsing_mm():
 def test_parsing_rcp():
     data_folder = f"{get_data_home()}/rcpsp/RG30/Set 1/"
     files = get_data_available(data_folder=data_folder)
-    files = [f for f in files if "Pat8.rcp" in f]  # Single mode RCPSP
+    files = [f for f in files if "Pat8.rcp" in f]
     assert len(files) > 0
-
     file_path = files[0]
     rcpsp_model = parse_file(file_path)
+    # Checking expected values to check at least partially the parsing of rcp files.
+    assert len(rcpsp_model.resources_list) == 4
+    assert all(rcpsp_model.resources[r] == 10 for r in rcpsp_model.resources_list)
+    assert rcpsp_model.source_task == 1
+    assert rcpsp_model.sink_task == 32
+    assert len(rcpsp_model.successors[rcpsp_model.source_task]) == 18
+    successors_source = [
+        2,
+        3,
+        4,
+        5,
+        7,
+        10,
+        11,
+        12,
+        13,
+        14,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+    ]
+    assert all(
+        s in rcpsp_model.successors[rcpsp_model.source_task] for s in successors_source
+    )

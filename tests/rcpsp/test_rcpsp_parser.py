@@ -173,3 +173,6 @@ def test_parsing_rcp():
     files = get_data_available(data_folder=data_folder)
     files = [f for f in files if "Pat8.rcp" in f]  # Single mode RCPSP
     assert len(files) > 0
+
+    file_path = files[0]
+    rcpsp_model = parse_file(file_path)

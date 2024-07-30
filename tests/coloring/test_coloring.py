@@ -213,6 +213,21 @@ def test_cpsat_solver(modeling):
     solution, fit = result_store.get_best_solution_fit()
     assert color_problem.satisfy(solution)
 
+    # test warm start
+    start_solution = solver.get_starting_solution()
+
+    # first solution is not start_solution
+    assert result_store[0][0].colors != start_solution.colors
+
+    # warm start at first solution
+    solver.set_warm_start(start_solution)
+    # force first solution to be the hinted one
+    result_store = solver.solve(
+        parameters_cp=p,
+        ortools_cpsat_solver_kwargs=dict(fix_variables_to_their_hinted_value=True),
+    )
+    assert result_store[0][0].colors == start_solution.colors
+
 
 def test_cpsat_solver_finetuned():
     small_example = [f for f in get_data_available() if "gc_20_1" in f][0]
@@ -434,6 +449,14 @@ def test_color_lp_gurobi():
     solution = result_store.get_best_solution_fit()[0]
     assert color_problem.satisfy(solution)
     assert len(result_store) > 1
+
+    # first solution is not start_solution
+    assert result_store[0][0].colors != solver.start_solution.colors
+
+    # warm start => first solution is start_solution
+    solver.set_warm_start(solver.start_solution)
+    result_store = solver.solve(parameters_milp=ParametersMilp.default())
+    assert result_store[0][0].colors == solver.start_solution.colors
 
 
 @pytest.mark.skipif(not gurobi_available, reason="You need Gurobi to test this solver.")

@@ -11,6 +11,7 @@ from discrete_optimization.generic_tools.do_problem import (
     Problem,
     Solution,
 )
+from discrete_optimization.generic_tools.do_solver import WarmstartMixin
 from discrete_optimization.generic_tools.hyperparameters.hyperparameter import (
     CategoricalHyperparameter,
     IntegerHyperparameter,
@@ -23,7 +24,7 @@ from discrete_optimization.vrp.vrp_toolbox import compute_length_matrix
 logger = logging.getLogger(__name__)
 
 
-class CpSatVrpSolver(OrtoolsCPSatSolver, SolverVrp):
+class CpSatVrpSolver(OrtoolsCPSatSolver, SolverVrp, WarmstartMixin):
     problem: VrpProblem
     hyperparameters = [
         CategoricalHyperparameter(
@@ -48,6 +49,43 @@ class CpSatVrpSolver(OrtoolsCPSatSolver, SolverVrp):
             self.distance_matrix[
                 self.problem.end_indexes[k], self.problem.start_indexes[k]
             ] = 0
+
+    def set_warm_start(self, solution: VrpSolution) -> None:
+        self.cp_model.clear_hints()
+        arc_literals_per_vehicles = self.variables["arc_literals_per_vehicles"]
+        for vehicle, arc_literals_vehicule in arc_literals_per_vehicles.items():
+            hints = {}
+            path = solution.list_paths[vehicle]
+            start_index = self.problem.start_indexes[vehicle]
+            end_index = self.problem.end_indexes[vehicle]
+
+            for (i, j) in arc_literals_vehicule:
+                if i == j:
+                    hints[i, j] = 1
+                else:
+                    hints[i, j] = 0
+
+            current_node = start_index
+            for next_node in path:
+                hints[current_node, next_node] = 1
+                current_node = next_node
+
+            if len(path) > 0:
+                # end the loop
+                last_node = path[-1]
+                if end_index not in path:
+                    # end node not in last 2 nodes of permutation
+                    hints[last_node, end_index] = 1
+                    last_node = end_index
+                    if end_index not in path:
+                        # close the cycle
+                        hints[last_node, start_index] = 1
+
+                self.cp_model.AddHint(self.variables["visited"][vehicle], 1)
+            else:
+                self.cp_model.AddHint(self.variables["visited"][vehicle], 0)
+            for (i, j), lit in arc_literals_vehicule.items():
+                self.cp_model.AddHint(lit, hints[i, j])
 
     def retrieve_solution(self, cpsolvercb: CpSolverSolutionCallback) -> Solution:
         logger.info(
@@ -112,6 +150,7 @@ class CpSatVrpSolver(OrtoolsCPSatSolver, SolverVrp):
         all_nodes = range(num_nodes)
 
         # Create the circuit constraint.
+        visited_per_vehicle = {}
         arc_literals_per_vehicles = {}
         dist_path_per_vehicle = {}
         ingoing_arc_per_node = {}
@@ -164,6 +203,7 @@ class CpSatVrpSolver(OrtoolsCPSatSolver, SolverVrp):
                         demand_coeffs.append(0)
             model.add_circuit(arcs)
             visited = model.NewBoolVar(f"non_nul_trip_{vehicle}")
+            visited_per_vehicle[vehicle] = visited
             for lit in arc_non_loop:
                 model.Add(visited >= lit)
             model.Add(
@@ -195,6 +235,7 @@ class CpSatVrpSolver(OrtoolsCPSatSolver, SolverVrp):
                 model.AddExactlyOne(ingoing_arc_per_node[j])
         self.variables["arc_literals_per_vehicles"] = arc_literals_per_vehicles
         self.variables["ingoing_arc_per_node"] = ingoing_arc_per_node
+        self.variables["visited"] = visited_per_vehicle
         self.cp_model = model
         self.variables["optional_node"] = args["optional_node"]
         if args["optional_node"]:

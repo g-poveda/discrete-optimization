@@ -206,7 +206,7 @@ def execute_ansatz_with_Hamiltonian(
                 }
             else:
                 options = {}
-
+        print("Launching optimize with option", options)
         res = minimize(
             cost_func,
             validate_initial_point(point=None, circuit=ansatz),

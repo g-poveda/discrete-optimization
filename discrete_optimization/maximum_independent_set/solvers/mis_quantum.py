@@ -68,7 +68,7 @@ class MisQiskit(OptimizationApplication):
         quadratic = {}
 
         for i in range(0, self.problem.number_nodes):
-            for j in range(i, self.problem.number_nodes):
+            for j in range(0, self.problem.number_nodes):
                 quadratic[(var_names[i], var_names[j])] = A[i][j]
 
         # we maximize the number of node in the independent set

@@ -50,24 +50,30 @@ class CpSatVrpSolver(OrtoolsCPSatSolver, SolverVrp, WarmstartMixin):
                 self.problem.end_indexes[k], self.problem.start_indexes[k]
             ] = 0
 
-    def set_warm_start(self, solution: VrpSolution) -> None:
+    def set_warm_start(self, solution: VrpSolution, debug_mode: bool = False) -> None:
         self.cp_model.clear_hints()
         arc_literals_per_vehicles = self.variables["arc_literals_per_vehicles"]
-        for vehicle, arc_literals_vehicule in arc_literals_per_vehicles.items():
+        all_hints = {v: {} for v in arc_literals_per_vehicles}
+        if debug_mode:
+            self.variables["to_hint"] = {v: {} for v in arc_literals_per_vehicles}
+        for vehicle, arc_literals_vehicle in arc_literals_per_vehicles.items():
             hints = {}
             path = solution.list_paths[vehicle]
             start_index = self.problem.start_indexes[vehicle]
             end_index = self.problem.end_indexes[vehicle]
 
-            for (i, j) in arc_literals_vehicule:
+            for (i, j) in arc_literals_vehicle:
                 if i == j:
                     hints[i, j] = 1
                 else:
                     hints[i, j] = 0
+            if len(path) > 0:
+                hints[start_index, start_index] = 0
 
             current_node = start_index
             for next_node in path:
                 hints[current_node, next_node] = 1
+                hints[next_node, next_node] = 0
                 current_node = next_node
 
             if len(path) > 0:
@@ -77,20 +83,47 @@ class CpSatVrpSolver(OrtoolsCPSatSolver, SolverVrp, WarmstartMixin):
                     # end node not in last 2 nodes of permutation
                     hints[last_node, end_index] = 1
                     last_node = end_index
-                    if end_index not in path:
+                    if end_index not in path and last_node != start_index:
                         # close the cycle
                         hints[last_node, start_index] = 1
 
                 self.cp_model.AddHint(self.variables["visited"][vehicle], 1)
             else:
                 self.cp_model.AddHint(self.variables["visited"][vehicle], 0)
-            for (i, j), lit in arc_literals_vehicule.items():
+            for (i, j), lit in arc_literals_vehicle.items():
                 self.cp_model.AddHint(lit, hints[i, j])
+                if debug_mode:
+                    self.variables["to_hint"][vehicle][i, j] = self.cp_model.NewBoolVar(
+                        f"{vehicle}, {i,j}"
+                    )
+                    self.cp_model.Add(lit == hints[i, j]).OnlyEnforceIf(
+                        self.variables["to_hint"][vehicle][i, j]
+                    )
+                    self.cp_model.Add(lit == (not hints[i, j])).OnlyEnforceIf(
+                        self.variables["to_hint"][vehicle][i, j].Not()
+                    )
+            all_hints[vehicle] = hints
+        if debug_mode:
+            self.cp_model.Maximize(
+                sum(
+                    self.variables["to_hint"][x][y]
+                    for x in self.variables["to_hint"]
+                    for y in self.variables["to_hint"][x]
+                )
+            )
+            self.all_hints = all_hints
+        return all_hints
 
     def retrieve_solution(self, cpsolvercb: CpSolverSolutionCallback) -> Solution:
         logger.info(
             f"obj value ={cpsolvercb.ObjectiveValue()} bound {cpsolvercb.BestObjectiveBound()}"
         )
+        if "to_hint" in self.variables:
+            for v in self.variables["to_hint"]:
+                for x in self.variables["to_hint"][v]:
+                    if not cpsolvercb.boolean_value(self.variables["to_hint"][v][x]):
+                        logger.debug(f"{v, x} not put to expected value")
+                        logger.debug(f"should be {self.all_hints[v][x]}")
         if self.variables["optional_node"]:
             logger.info(
                 f"Nb nodes visited = {cpsolvercb.Value(self.variables['nb_nodes'])}"

@@ -91,6 +91,7 @@ def test_solver_cpsat():
     assert result_storage[0][0].chosen == start_solution.chosen
 
 
+@pytest.mark.skipif(not gurobi_available, reason="You need Gurobi to test this solver.")
 def test_solver_gurobi():
     small_example = [f for f in get_data_available() if "1dc.64" in f][0]
     mis_model: MisProblem = dimacs_parser_nx(small_example)

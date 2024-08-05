@@ -876,7 +876,7 @@ class LinearFlowSolver(GurobiMilpSolver, SolverPickupVrp, WarmstartMixin):
 
         self.optimize_model(parameters_milp=parameters_milp, **kwargs)
         list_temporary_results: List[TemporaryResult] = []
-        for i in range(self.nb_solutions):
+        for i in range(self.nb_solutions - 1, -1, -1):
             list_temporary_results.append(self.retrieve_ith_temporaryresult(i=i))
 
         return list_temporary_results

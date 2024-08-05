@@ -213,19 +213,35 @@ def test_vrp_simplified():
 def test_selective_tsp():
     gpdp = create_selective_tsp(nb_nodes=20, nb_vehicles=1, nb_clusters=4)
     linear_flow_solver = LinearFlowSolver(problem=gpdp)
-    linear_flow_solver.init_model(
+    kwargs_init_model = dict(
         one_visit_per_node=False,
         one_visit_per_cluster=True,
         include_capacity=False,
         include_time_evolution=False,
     )
+    linear_flow_solver.init_model(**kwargs_init_model)
     p = ParametersMilp.default()
     p.time_limit = 100
-    res = linear_flow_solver.solve_iterative(
+    kwargs_solve = dict(
         parameters_milp=p, do_lns=False, nb_iteration_max=20, include_subtour=False
     )
-    sol: GPDPSolution = res.get_best_solution()
+    result_storage = linear_flow_solver.solve_iterative(**kwargs_solve)
+    sol: GPDPSolution = result_storage.get_best_solution()
     plot_gpdp_solution(sol, gpdp)
+
+    # test warm start
+    start_solution: GPDPSolution = result_storage[1][0]
+
+    # first solution is not start_solution
+    assert result_storage[0][0].trajectories != start_solution.trajectories
+
+    # warm start at first solution
+    linear_flow_solver = LinearFlowSolver(problem=gpdp)
+    linear_flow_solver.init_model(**kwargs_init_model)
+    linear_flow_solver.set_warm_start(start_solution)
+    # force first solution to be the hinted one
+    result_storage2 = linear_flow_solver.solve(**kwargs_solve)
+    assert result_storage2[0][0].trajectories == start_solution.trajectories
 
 
 @pytest.mark.skipif(not gurobi_available, reason="You need Gurobi to test this solver.")

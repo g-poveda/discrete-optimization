@@ -21,7 +21,7 @@ def run_mathopt_knapsack():
     res = solver.solve(
         time_limit=30,
         mathopt_enable_output=True,
-        mathopt_solver_type=mathopt.SolverType.GSCIP,
+        mathopt_solver_type=mathopt.SolverType.CP_SAT,
     )
     print(solver.termination)
     sol = res.get_best_solution_fit()[0]

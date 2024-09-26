@@ -6,13 +6,13 @@ import logging
 
 from discrete_optimization.generic_tools.cp_tools import ParametersCP
 from discrete_optimization.jsp.job_shop_parser import get_data_available, parse_file
-from discrete_optimization.jsp.job_shop_problem import JobShopProblem
-from discrete_optimization.jsp.solvers.cpsat_jsp_solver import CPSatJspSolver
+from discrete_optimization.jsp.job_shop_utils import transform_jsp_to_rcpsp
+from discrete_optimization.rcpsp.solver.cpsat_solver import CPSatRCPSPSolver
 
 logging.basicConfig(level=logging.INFO)
 
 
-def run_cpsat_jsp():
+def run_cpsat_jsp_via_rcpsp():
     file_path = get_data_available()[1]
     # file_path = [f for f in get_data_available() if "abz6" in f][0]
     problem = parse_file(file_path)
@@ -26,15 +26,15 @@ def run_cpsat_jsp():
         problem.n_machines,
         " machines",
     )
-    solver = CPSatJspSolver(problem=problem)
+    rcpsp_problem = transform_jsp_to_rcpsp(problem)
+    solver = CPSatRCPSPSolver(problem=rcpsp_problem)
     p = ParametersCP.default_cpsat()
     p.nb_process = 10
     res = solver.solve(parameters_cp=p, time_limit=10)
     sol = res.get_best_solution_fit()[0]
-    print(solver.get_status_solver())
-    assert problem.satisfy(sol)
-    print(problem.evaluate(sol))
+    assert rcpsp_problem.satisfy(sol)
+    print(rcpsp_problem.evaluate(sol))
 
 
 if __name__ == "__main__":
-    run_cpsat_jsp()
+    run_cpsat_jsp_via_rcpsp()

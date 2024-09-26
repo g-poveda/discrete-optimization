@@ -313,6 +313,7 @@ class CPSatRCPSPSolver(OrtoolsCPSatSolver, SolverRCPSP, WarmstartMixin):
             the intermediate solution, at do format.
 
         """
+        print(cpsolvercb.ObjectiveValue())
         schedule = {}
         modes_dict = {}
         for task in self.variables["start"]:

@@ -60,8 +60,19 @@ class JobShopProblem(Problem):
     def evaluate(self, variable: SolutionJobshop) -> dict[str, float]:
         return {"makespan": max(x[-1][1] for x in variable.schedule)}
 
-    def satisfy(self, variable: Solution) -> bool:
-        """TODO To be implemented."""
+    def satisfy(self, variable: SolutionJobshop) -> bool:
+        for m in self.job_per_machines:
+            sorted_ = sorted(
+                [variable.schedule[x[0]][x[1]] for x in self.job_per_machines[m]],
+                key=lambda y: y[0],
+            )
+            for i in range(1, len(sorted_)):
+                if sorted_[i][0] < sorted_[i - 1][1]:
+                    return False
+        for job in range(self.n_jobs):
+            for s_j in range(1, len(variable.schedule[job])):
+                if variable.schedule[job][s_j][0] < variable.schedule[job][s_j - 1][1]:
+                    return False
         return True
 
     def get_attribute_register(self) -> EncodingRegister:

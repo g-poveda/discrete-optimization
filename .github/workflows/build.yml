@@ -117,7 +117,7 @@ jobs:
           - os: "windows-latest"
             minizinc_config_cmdline: export PATH=$PATH:~/AppData/Local/Programs/MiniZinc
             minizinc_cache_path: ~/AppData/Local/Programs/MiniZinc
-            minizinc_url: https://github.com/MiniZinc/MiniZincIDE/releases/download/2.8.5/MiniZincIDE-2.8.5-bundled-setup-win64.exe
+            minizinc_url: https://github.com/MiniZinc/MiniZincIDE/releases/download/2.9.1/MiniZincIDE-2.9.1-bundled-setup-win64.exe
             minizinc_downloaded_filepath: minizinc_setup.exe
             minizinc_install_cmdline: cmd //c "minizinc_setup.exe /verysilent /currentuser /norestart /suppressmsgboxes /sp"
             minizinc_prerequisites_cmdline: ""

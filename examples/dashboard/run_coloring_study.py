@@ -27,7 +27,7 @@ from discrete_optimization.generic_tools.study import (
 logging.basicConfig(level=logging.INFO)
 
 study_name = "Coloring-Study-0"
-overwrite = True  # do we overwrite previous study with same name or not? if False, we possibly add duplicates
+overwrite = False  # do we overwrite previous study with same name or not? if False, we possibly add duplicates
 instances = ["gc_50_3", "gc_50_1"]
 solver_configs = {
     "cpsat-integer": SolverConfig(

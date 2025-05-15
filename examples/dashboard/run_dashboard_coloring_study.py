@@ -1,3 +1,5 @@
+import numpy as np
+
 from discrete_optimization.generic_tools.dashboard import Dashboard
 from discrete_optimization.generic_tools.study import Hdf5Database
 
@@ -8,6 +10,11 @@ with Hdf5Database(f"{study_name}.h5") as database:
     results = database.load_results()
 
 
+# create empty dfs
+# results[-1][:] = np.nan
+# results[-2][:] = np.nan
+
+
 # launch dashboard with this data
 app = Dashboard(results=results)
-app.run()
+app.run(debug=True)

@@ -3,17 +3,13 @@ import os
 
 import pandas as pd
 
-from discrete_optimization.coloring.parser import get_data_available, parse_file
-from discrete_optimization.coloring.solvers.cpsat import (
-    CpSatColoringSolver,
-    ModelingCpSat,
-)
-from discrete_optimization.coloring.solvers.lp import (
-    GurobiColoringSolver,
-    MathOptColoringSolver,
+from discrete_optimization.generic_rcpsp_tools.solvers.ls import (
+    LsGenericRcpspSolver,
+    LsSolverType,
 )
 from discrete_optimization.generic_tools.callbacks.loggers import NbIterationTracker
 from discrete_optimization.generic_tools.callbacks.stats_retrievers import (
+    BasicStatsCallback,
     StatsWithBoundsCallback,
 )
 from discrete_optimization.generic_tools.cp_tools import ParametersCp
@@ -23,37 +19,39 @@ from discrete_optimization.generic_tools.study import (
     Hdf5Database,
     SolverConfig,
 )
+from discrete_optimization.rcpsp.parser import get_data_available, parse_file
+from discrete_optimization.rcpsp.solvers.cpsat import CpSatRcpspSolver
 
 logging.basicConfig(level=logging.INFO)
 
-study_name = "Coloring-Study-0"
-overwrite = True  # do we overwrite previous study with same name or not? if False, we possibly add duplicates
-instances = ["gc_50_3", "gc_50_1"]
+study_name = "rcpsp-Study-0"
+overwrite = False  # do we overwrite previous study with same name or not? if False, we possibly add duplicates
+instances = [os.path.basename(p) for p in get_data_available() if "sm" in p][:30]
+p = ParametersCp.default_cpsat()
+p.nb_process = 10
 solver_configs = {
-    "cpsat-integer": SolverConfig(
-        cls=CpSatColoringSolver,
+    "cpsat-1proc": SolverConfig(
+        cls=CpSatRcpspSolver,
         kwargs=dict(
-            parameters_cp=ParametersCp.default_cpsat(),
-            modeling=ModelingCpSat.INTEGER,
-            do_warmstart=False,
-            value_sequence_chain=False,
-            used_variable=True,
-            symmetry_on_used=True,
+            time_limit=20,
+            parameters_cp=ParametersCp.default(),
         ),
     ),
-    "cpsat-binary": SolverConfig(
-        cls=CpSatColoringSolver,
+    "cpsat-multiproc": SolverConfig(
+        cls=CpSatRcpspSolver,
         kwargs=dict(
-            parameters_cp=ParametersCp.default_cpsat(),
-            modeling=ModelingCpSat.BINARY,
-            do_warmstart=False,
-            value_sequence_chain=False,
-            used_variable=True,
-            symmetry_on_used=True,
+            time_limit=20,
+            parameters_cp=p,
         ),
     ),
-    "gurobi": SolverConfig(cls=GurobiColoringSolver, kwargs=dict()),
-    "mathopt": SolverConfig(cls=MathOptColoringSolver, kwargs=dict()),
+    "sa": SolverConfig(
+        cls=LsGenericRcpspSolver,
+        kwargs=dict(ls_solver=LsSolverType.SA, nb_iteration_max=10000),
+    ),
+    "hc": SolverConfig(
+        cls=LsGenericRcpspSolver,
+        kwargs=dict(ls_solver=LsSolverType.HC, nb_iteration_max=10000),
+    ),
 }
 
 database_filepath = f"{study_name}.h5"
@@ -78,6 +76,8 @@ with Hdf5Database(
                 color_problem = parse_file(file)
                 # init solver
                 stats_cb = StatsWithBoundsCallback()
+                if config_name in {"sa", "hc"}:
+                    stats_cb = BasicStatsCallback()
                 solver = solver_config.cls(color_problem, **solver_config.kwargs)
                 solver.init_model(**solver_config.kwargs)
                 # solve

@@ -350,12 +350,7 @@ class ParametersGphh:
         pset.addPrimitive(protected_div, 2)
         pset.addPrimitive(max_operator, 2)
         pset.addPrimitive(min_operator, 2)
-        pset.addPrimitive(operator.neg, 1),
-        pset.addEphemeralConstant(lambda: random.uniform(-1, 1), float)
-        pset.addEphemeralConstant(lambda: random.uniform(-1, 1), float)
-        pset.addTerminal(1.0, float)
-        pset.addTerminal(1, bool)
-        pset.addTerminal(0, bool)
+        pset.addPrimitive(operator.neg, 1)
 
         return ParametersGphh(
             set_feature=set_feature,
@@ -674,3 +669,6 @@ class GphhGenericRcpspSolver(GenericRcpspSolver):
         for domain in self.training_domains:
             cpm, cpm_esd = compute_cpm(domain)
             self.cpm_data[domain] = {"cpm": cpm, "cpm_esd": cpm_esd}
+        if self.problem not in self.cpm_data:
+            cpm, cpm_esd = compute_cpm(self.problem)
+            self.cpm_data[self.problem] = {"cpm": cpm, "cpm_esd": cpm_esd}

@@ -296,8 +296,8 @@ def extract_solvetimes_by_config(results: list[pd.DataFrame]) -> dict[str, list[
 def convert_solvetimes2nbsolvedinstances(
     solvetimes: list[float],
     time_label: str = "time",
-    name: str = "nb of solved instances",
 ) -> pd.Series:
+    name = "nb of solved instances"
     ser = pd.Series(
         {t: n for t, n in zip(sorted(solvetimes), range(1, len(solvetimes) + 1))},
         name=name,
@@ -316,4 +316,23 @@ def extract_nbsolvedinstances_by_config(
     return {
         config: convert_solvetimes2nbsolvedinstances(solvetimes, time_label=time_label)
         for config, solvetimes in extract_solvetimes_by_config(results=results).items()
+    }
+
+
+def convert_nb2percentage_solvedinstances(
+    ser: pd.Series,
+    n_instances: int,
+) -> pd.Series:
+    ser = ser * 100 / n_instances
+    ser.name = "% of solved instances"
+    return ser
+
+
+def convert_nb2percentage_solvedinstances_by_config(
+    nbsolvedinstances_by_config: dict[str, pd.Series],
+    n_instances: int,
+) -> dict[str, pd.Series]:
+    return {
+        config: convert_nb2percentage_solvedinstances(ser, n_instances=n_instances)
+        for config, ser in nbsolvedinstances_by_config.items()
     }

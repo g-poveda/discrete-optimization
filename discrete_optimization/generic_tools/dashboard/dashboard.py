@@ -20,6 +20,8 @@ from discrete_optimization.generic_tools.dashboard.preprocess import (
     clip_results,
     compute_extra_metrics,
     compute_stat_by_config,
+    convert_nb2percentage_solvedinstances,
+    convert_nb2percentage_solvedinstances_by_config,
     drop_empty_results,
     extract_configs,
     extract_empty_xps_metadata,
@@ -482,13 +484,18 @@ class Dashboard(Dash):
         def update_graph_nb_solved_instances(configs, time_log_scale, transpose_value):
             transpose = TRANSPOSE_KEY in transpose_value
             with_time_log_scale = TIME_LOGSCALE_KEY in time_log_scale
-            nbsolvedinstances_by_config = {
-                config: ser
+            n_instances = len(
+                self.results
+            )  # nb instances * attempts  # beware actually depending on configs!
+            percentsolvedinstances_by_config = {
+                config: convert_nb2percentage_solvedinstances(
+                    ser, n_instances=n_instances
+                )
                 for config, ser in self.nbsolvedinstances_by_config.items()
                 if config in configs
             }
             return create_graph_from_series_dict(
-                map_label2ser=nbsolvedinstances_by_config,
+                map_label2ser=percentsolvedinstances_by_config,
                 with_time_log_scale=with_time_log_scale,
                 legend_title="Configs",
                 transpose=transpose,

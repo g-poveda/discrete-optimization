@@ -26,7 +26,7 @@ logging.basicConfig(level=logging.INFO)
 
 study_name = "rcpsp-Study-0"
 overwrite = False  # do we overwrite previous study with same name or not? if False, we possibly add duplicates
-instances = [os.path.basename(p) for p in get_data_available() if "sm" in p][:30]
+instances = [os.path.basename(p) for p in get_data_available() if "sm" in p][:5]
 p = ParametersCp.default_cpsat()
 p.nb_process = 10
 solver_configs = {

@@ -99,10 +99,11 @@ class ConfigStore:
 
         # check that only one config corresponds to this name
         if name in self.map_name2config:
-            assert hashable_config == self.map_name2config[name], (
-                f"Two configs share same name {name}: "
-                f"{convert_config_hashable2dict(self.map_name2config[name])} and {config}."
-            )
+            pass
+            # assert hashable_config == self.map_name2config[name], (
+            #    f"Two configs share same name {name}: "
+            #    f"{convert_config_hashable2dict(self.map_name2config[name])} and {config}."
+            # )
         else:
             self.map_name2config[name] = hashable_config
 

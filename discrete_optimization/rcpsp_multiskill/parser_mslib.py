@@ -52,7 +52,7 @@ def get_data_available(
     }
 
 
-def parse_file(file_path, skill_level_version: bool = True):
+def parse_file(file_path, skill_level_version: bool = True, horizon: int = None):
     logger.info(f"Parsing file {file_path}")
     with open(file_path, "r", encoding="utf-8") as file:
         f = file.readlines()
@@ -65,6 +65,8 @@ def parse_file(file_path, skill_level_version: bool = True):
             f"number skills {number_skills}, {number_skill_level}"
         )
         horizon_1 = int(f[3])
+        if horizon is not None:
+            horizon_1 = horizon
         horizon_2 = int(f[5])
         range_activities = range(7, 7 + number_activities)
         successors_dict = {}

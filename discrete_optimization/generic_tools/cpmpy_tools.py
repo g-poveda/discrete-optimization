@@ -14,6 +14,7 @@ from cpmpy.expressions.core import Expression
 from cpmpy.expressions.variables import NDVarArray
 from cpmpy.model import Model
 from cpmpy.solvers.solver_interface import ExitStatus, SolverStatus
+from cpmpy.tools import make_assump_model
 from cpmpy.tools.explain.mcs import mcs_grow, mcs_opt
 from cpmpy.tools.explain.mus import (
     mus,
@@ -47,6 +48,7 @@ map_exitstatus2statussolver = {
 
 
 class CpmpyExplainUnsatMethod(Enum):
+    core = "core"
     mus = "mus"
     quickxplain = "quickxplain"
     optimal_mus = "optimal_mus"
@@ -234,6 +236,15 @@ class CpmpySolver(SolverDO):
             soft = self.get_soft_constraints()
         if hard is None:
             hard = self.get_hard_constraints()
+        if cpmpy_method == CpmpyExplainUnsatMethod.core:
+            (m, soft, assump) = make_assump_model(soft, hard=hard)
+            s = cpmpy.SolverLookup.get(kwargs.get("solver", "ortools"), m)
+            # create dictionary from assump to soft
+            dmap = dict(zip(assump, soft))
+            assert not s.solve(assumptions=assump,
+                               num_search_workers=16), "MUS: model must be UNSAT"
+            core = set(s.get_core())
+            return [dmap[avar] for avar in core]
         fun = map_explainunsatmethod2fun[cpmpy_method]
         return fun(soft=soft, hard=hard, **kwargs)
 

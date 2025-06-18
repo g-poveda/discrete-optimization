@@ -41,6 +41,10 @@ def example_parsing_and_local_search():
 def example_mslib_cpsat():
     files_dict = get_data_available()
     file = [f for f in files_dict["MSLIB4"] if "MSLIB_Set4_1003.msrcp" in f][0]
+    file = [f for f in files_dict["MSLIB1"] if "MSLIB_Set1_339.msrcp" in f][0]
+    file = [f for f in files_dict["MSLIB1"] if "MSLIB_Set1_400.msrcp" in f][0]
+
+    print(file)
     model = parse_file(file, skill_level_version=False)
     solver = CpSatMultiskillRcpspSolver(
         problem=model,

@@ -115,7 +115,7 @@ class CpmpySolver(CpSolver):
         callbacks_list.on_solve_start(solver=self)
 
         solver = kwargs.get("solver", "ortools")
-        self.model.solve(solver, time_limit=time_limit, **kwargs)
+        self.model.solve(solver=solver, time_limit=time_limit, **{k: kwargs[k] for k in kwargs if k!="solver"})
         self.cpm_status = self.model.cpm_status
         self.status_solver = map_exitstatus2statussolver[self.cpm_status.exitstatus]
 

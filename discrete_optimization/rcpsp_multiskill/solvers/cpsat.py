@@ -15,10 +15,10 @@ from ortools.sat.python.cp_model import (
 )
 
 from discrete_optimization.generic_tools.do_problem import Problem, Solution
+from discrete_optimization.generic_tools.do_solver import WarmstartMixin
 from discrete_optimization.generic_tools.hyperparameters.hyperparameter import (
     CategoricalHyperparameter,
 )
-from discrete_optimization.generic_tools.do_solver import WarmstartMixin
 from discrete_optimization.generic_tools.ortools_cpsat_tools import OrtoolsCpSatSolver
 from discrete_optimization.generic_tools.result_storage.result_storage import (
     ResultStorage,
@@ -618,7 +618,11 @@ class CpSatMultiskillRcpspSolver(OrtoolsCpSatSolver, WarmstartMixin):
                     else:
                         lb_nb_worker_needed = max(
                             [
-                                int(math.ceil(skills_needed[s] / max_skill_over_worker[s]))
+                                int(
+                                    math.ceil(
+                                        skills_needed[s] / max_skill_over_worker[s]
+                                    )
+                                )
                                 for s in skills_needed
                             ]
                         )
@@ -753,58 +757,112 @@ class CpSatMultiskillRcpspSolver(OrtoolsCpSatSolver, WarmstartMixin):
     def set_warm_start(self, solution: MultiskillRcpspSolution) -> None:
         self.cp_model.clear_hints()
         for task in self.variables["base_variable"]["starts"]:
-            self.cp_model.add_hint(self.variables["base_variable"]["starts"][task],
-                                   solution.get_start_time(task))
-            self.cp_model.add_hint(self.variables["base_variable"]["ends"][task],
-                                   solution.get_end_time(task))
-            self.cp_model.add_hint(self.variables["base_variable"]["durations"][task],
-                                   solution.get_end_time(task)-solution.get_start_time(task))
+            self.cp_model.add_hint(
+                self.variables["base_variable"]["starts"][task],
+                solution.get_start_time(task),
+            )
+            self.cp_model.add_hint(
+                self.variables["base_variable"]["ends"][task],
+                solution.get_end_time(task),
+            )
+            self.cp_model.add_hint(
+                self.variables["base_variable"]["durations"][task],
+                solution.get_end_time(task) - solution.get_start_time(task),
+            )
             modes = list(self.problem.mode_details[task].keys())
             if len(modes) > 1:
                 for mode in self.variables["mode_variable"]["is_present"][task]:
                     if solution.modes[task] == mode:
-                        self.cp_model.add_hint(self.variables["mode_variable"]["is_present"][task][mode],
-                                               1)
+                        self.cp_model.add_hint(
+                            self.variables["mode_variable"]["is_present"][task][mode], 1
+                        )
                         for s in self.variables["skills_req"][task]:
-                            self.cp_model.add_hint(self.variables["skills_req"][task][s],
-                                                   self.problem.mode_details[task][mode].get(s, 0))
+                            self.cp_model.add_hint(
+                                self.variables["skills_req"][task][s],
+                                self.problem.mode_details[task][mode].get(s, 0),
+                            )
                     else:
-                        self.cp_model.add_hint(self.variables["mode_variable"]["is_present"][task][mode],
-                                               0)
+                        self.cp_model.add_hint(
+                            self.variables["mode_variable"]["is_present"][task][mode], 0
+                        )
             if task in self.variables["worker_variable"]["is_present"]:
                 for worker in self.variables["worker_variable"]["is_present"][task]:
                     if worker in solution.employee_usage[task]:
                         if len(solution.employee_usage[task][worker]) > 0:
-                            self.cp_model.add_hint(self.variables["worker_variable"]["is_present"][task][worker],
-                                                   1)
-                            for s in self.variables["worker_variable"]["skills_used"][task][worker]:
-                                if (self.variables["worker_variable"]["skills_used"][task][worker][s] ==
-                                        self.variables["worker_variable"]["is_present"][task][worker]):
+                            self.cp_model.add_hint(
+                                self.variables["worker_variable"]["is_present"][task][
+                                    worker
+                                ],
+                                1,
+                            )
+                            for s in self.variables["worker_variable"]["skills_used"][
+                                task
+                            ][worker]:
+                                if (
+                                    self.variables["worker_variable"]["skills_used"][
+                                        task
+                                    ][worker][s]
+                                    == self.variables["worker_variable"]["is_present"][
+                                        task
+                                    ][worker]
+                                ):
                                     continue
 
                                 if s in solution.employee_usage[task][worker]:
                                     self.cp_model.add_hint(
-                                        self.variables["worker_variable"]["skills_used"][task][worker][s],
-                                    1)
+                                        self.variables["worker_variable"][
+                                            "skills_used"
+                                        ][task][worker][s],
+                                        1,
+                                    )
                                 else:
                                     self.cp_model.add_hint(
-                                        self.variables["worker_variable"]["skills_used"][task][worker][s],
-                                        0)
+                                        self.variables["worker_variable"][
+                                            "skills_used"
+                                        ][task][worker][s],
+                                        0,
+                                    )
                         else:
-                            self.cp_model.add_hint(self.variables["worker_variable"]["is_present"][task][worker],
-                                                   0)
-                            for s in self.variables["worker_variable"]["skills_used"][task][worker]:
-                                self.cp_model.add_hint(self.variables["worker_variable"]["skills_used"][task][worker][s],
-                                                       0)
+                            self.cp_model.add_hint(
+                                self.variables["worker_variable"]["is_present"][task][
+                                    worker
+                                ],
+                                0,
+                            )
+                            for s in self.variables["worker_variable"]["skills_used"][
+                                task
+                            ][worker]:
+                                self.cp_model.add_hint(
+                                    self.variables["worker_variable"]["skills_used"][
+                                        task
+                                    ][worker][s],
+                                    0,
+                                )
                     else:
-                        self.cp_model.add_hint(self.variables["worker_variable"]["is_present"][task][worker],
-                                               0)
-                        for s in self.variables["worker_variable"]["skills_used"][task][worker]:
-                            if (self.variables["worker_variable"]["skills_used"][task][worker][s] ==
-                                self.variables["worker_variable"]["is_present"][task][worker]):
+                        self.cp_model.add_hint(
+                            self.variables["worker_variable"]["is_present"][task][
+                                worker
+                            ],
+                            0,
+                        )
+                        for s in self.variables["worker_variable"]["skills_used"][task][
+                            worker
+                        ]:
+                            if (
+                                self.variables["worker_variable"]["skills_used"][task][
+                                    worker
+                                ][s]
+                                == self.variables["worker_variable"]["is_present"][
+                                    task
+                                ][worker]
+                            ):
                                 continue
-                            self.cp_model.add_hint(self.variables["worker_variable"]["skills_used"][task][worker][s],
-                                                   0)
+                            self.cp_model.add_hint(
+                                self.variables["worker_variable"]["skills_used"][task][
+                                    worker
+                                ][s],
+                                0,
+                            )
 
     def retrieve_solution(self, cpsolvercb: CpSolverSolutionCallback) -> Solution:
         logger.info(

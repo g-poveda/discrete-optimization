@@ -241,8 +241,9 @@ class CpmpySolver(SolverDO):
             s = cpmpy.SolverLookup.get(kwargs.get("solver", "ortools"), m)
             # create dictionary from assump to soft
             dmap = dict(zip(assump, soft))
-            assert not s.solve(assumptions=assump,
-                               num_search_workers=16), "MUS: model must be UNSAT"
+            assert not s.solve(
+                assumptions=assump, num_search_workers=16
+            ), "MUS: model must be UNSAT"
             core = set(s.get_core())
             return [dmap[avar] for avar in core]
         fun = map_explainunsatmethod2fun[cpmpy_method]

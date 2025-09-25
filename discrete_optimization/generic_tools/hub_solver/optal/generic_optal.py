@@ -133,7 +133,6 @@ class OptalSolver(CpSolver):
             dict_ = json.load(open(self._result_path, "r"))
             sol = self.retrieve_current_solution(dict_results=dict_)
             fit = self.aggreg_from_sol(sol)
-            # self._stats = json.load(open(self._logs_path, "r"))
             self._stats = dict_
             if (
                 self._stats["lowerBoundHistory"][-1]["value"]
@@ -144,6 +143,11 @@ class OptalSolver(CpSolver):
                 self.status_solver = StatusSolver.SATISFIED
             res = self.create_result_storage(list_solution_fits=[(sol, fit)])
             cb_list.on_solve_end(res=res, solver=self)
+            # Clean results file
+            if os.path.exists(self._logs_path):
+                os.remove(self._logs_path)
+            if os.path.exists(self._result_path):
+                os.remove(self._result_path)
             return res
         except FileNotFoundError:
             logger.error(

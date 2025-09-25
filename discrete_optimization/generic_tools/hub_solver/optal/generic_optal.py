@@ -149,7 +149,7 @@ class OptalSolver(CpSolver):
             if os.path.exists(self._result_path):
                 os.remove(self._result_path)
             return res
-        except FileNotFoundError:
+        except FileNotFoundError as e:
             logger.error(
                 f"Error: The command 'node' or script '{self._script_model}' was not found."
             )

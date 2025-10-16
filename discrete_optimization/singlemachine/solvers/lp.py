@@ -1,17 +1,28 @@
 #  Copyright (c) 2025 AIRBUS and its affiliates.
 #  This source code is licensed under the MIT license found in the
 #  LICENSE file in the root directory of this source tree.
-import gurobipy
-from discrete_optimization.generic_tools.lp_tools import MilpSolver, OrtoolsMathOptMilpSolver, InequalitySense
-from discrete_optimization.singlemachine.problem import WeightedTardinessProblem, WTSolution
 import logging
-from ortools.math_opt.python import mathopt
 from typing import Any, Callable, Dict
+
+from ortools.math_opt.python import mathopt
+
 from discrete_optimization.generic_tools.do_problem import Solution
-from discrete_optimization.generic_tools.lp_tools import (GurobiMilpSolver,
-                                                          MilpSolver,
-                                                          OrtoolsMathOptMilpSolver,
-                                                          InequalitySense)
+from discrete_optimization.generic_tools.lp_tools import (
+    GurobiMilpSolver,
+    InequalitySense,
+    MilpSolver,
+    OrtoolsMathOptMilpSolver,
+)
+from discrete_optimization.singlemachine.problem import (
+    WeightedTardinessProblem,
+    WTSolution,
+)
+
+try:
+    import gurobipy
+except:
+    pass
+
 
 logger = logging.getLogger(__name__)
 
@@ -54,9 +65,7 @@ class _BaseLpSingleMachineSolver(MilpSolver):
         }
         # C_i = completion time of job i
         c = {
-            i: self.add_continuous_variable(
-                lb=r[i] + p[i], name=f"C_{i}"
-            )
+            i: self.add_continuous_variable(lb=r[i] + p[i], name=f"C_{i}")
             for i in range(num_jobs)
         }
         # T_i = tardiness of job i
@@ -78,12 +87,14 @@ class _BaseLpSingleMachineSolver(MilpSolver):
             for j in range(num_jobs):
                 if i == j:
                     continue
-                self.add_linear_constraint_with_indicator(x[(i, j)],
-                                                          1,
-                                                          c[j],
-                                                          sense=InequalitySense.GREATER_OR_EQUAL,
-                                                          rhs=c[i]+p[j],
-                                                          penalty_coeff=big_m)
+                self.add_linear_constraint_with_indicator(
+                    x[(i, j)],
+                    1,
+                    c[j],
+                    sense=InequalitySense.GREATER_OR_EQUAL,
+                    rhs=c[i] + p[j],
+                    penalty_coeff=big_m,
+                )
 
         # Tardiness definition: T_i >= C_i - d_i
         for i in range(num_jobs):
@@ -100,15 +111,13 @@ class _BaseLpSingleMachineSolver(MilpSolver):
                     self.add_linear_constraint(x[(i, j)] + x[(j, k)] + x[(k, i)] <= 2)
 
         # --- Define Objective Function ---
-        objective = self.construct_linear_sum(
-            [w[i] * t[i] for i in range(num_jobs)]
-        )
+        objective = self.construct_linear_sum([w[i] * t[i] for i in range(num_jobs)])
         self.set_model_objective(objective, minimize=True)
         logger.info("LP model initialized.")
 
-    def retrieve_current_solution(self,
-                                  get_var_value_for_current_solution: Callable[[Any], float],
-                                  **kwargs) -> Solution:
+    def retrieve_current_solution(
+        self, get_var_value_for_current_solution: Callable[[Any], float], **kwargs
+    ) -> Solution:
         """
         Retrieves a WTSolution from the LP solver's results.
 
@@ -122,9 +131,7 @@ class _BaseLpSingleMachineSolver(MilpSolver):
         """
         schedule = [() for _ in range(self.problem.num_jobs)]
         for i in range(self.problem.num_jobs):
-            completion_time = get_var_value_for_current_solution(
-                self.variables["c"][i]
-            )
+            completion_time = get_var_value_for_current_solution(self.variables["c"][i])
             start_time = completion_time - self.problem.processing_times[i]
             schedule[i] = (int(round(start_time)), int(round(completion_time)))
 
@@ -135,7 +142,7 @@ class MathOptSingleMachineSolver(_BaseLpSingleMachineSolver, OrtoolsMathOptMilpS
     def convert_to_variable_values(
         self, solution: Solution
     ) -> dict[mathopt.Variable, float]:
-        #self.variables = {"x": x, "c": c, "t": t}
+        # self.variables = {"x": x, "c": c, "t": t}
         sol: WTSolution = solution
         dict_variable = {}
         for i in range(self.problem.num_jobs):

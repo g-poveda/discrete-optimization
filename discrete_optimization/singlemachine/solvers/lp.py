@@ -142,17 +142,11 @@ class MathOptSingleMachineSolver(_BaseLpSingleMachineSolver, OrtoolsMathOptMilpS
     def convert_to_variable_values(
         self, solution: Solution
     ) -> dict[mathopt.Variable, float]:
-        # self.variables = {"x": x, "c": c, "t": t}
-        sol: WTSolution = solution
-        dict_variable = {}
-        for i in range(self.problem.num_jobs):
-            end_ = sol.schedule[i, 1]
-            dict_variable[self.variables[""]]
         pass
 
 
 class GurobiSingleMachineSolver(_BaseLpSingleMachineSolver, GurobiMilpSolver):
     def convert_to_variable_values(
         self, solution: Solution
-    ) -> dict[gurobipy.Var, float]:
+    ) -> dict["gurobipy.Var", float]:
         pass

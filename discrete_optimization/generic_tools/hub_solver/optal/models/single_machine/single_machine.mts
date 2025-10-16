@@ -20,6 +20,7 @@ function defineModelAndVarsJson(filename: string): ModelWithVariables {
 
   const jobVars = new Map<string, CP.IntervalVar>();
   const weightedTardinessExprs: CP.IntExpr[] = [];
+  const max_time = 50000;
 
   // 2. Create an interval variable for each job
   for (let i = 0; i < data.num_jobs; i++) {
@@ -27,19 +28,18 @@ function defineModelAndVarsJson(filename: string): ModelWithVariables {
     const w_i = data.weights[i] as number;
     const d_i = data.due_dates[i] as number;
     const r_i = data.release_dates[i] as number;
-
     // Create the interval variable for the job.
     // The release date is handled by setting the lower bound of the start time.
     const jobVar = model.intervalVar({
       name: `Job_${i}`,
       length: p_i,
-      start: [r_i, Infinity] // Constraint: start_i >= release_date_i
+      start: [r_i, max_time] // Constraint: start_i >= release_date_i
     });
     jobVars.set(i.toString(), jobVar);
 
     // 3. Define tardiness for each job
     // Tardiness_i = max(0, end_i - due_date_i)
-    const tardiness = model.max(0, jobVar.end().sub(d_i));
+    const tardiness = model.max([0, jobVar.end().minus(d_i)]);
 
     // Add the weighted tardiness to our list of objective terms
     weightedTardinessExprs.push(tardiness.times(w_i));
@@ -72,9 +72,11 @@ async function runWtAndExport(inputFilename: string, outputJSON: string, params:
   }
 
   let output = {
-    objective: solution ? solution.objectiveValue : null,
+    objective: solution ? solution.getObjective() : null,
     duration: result.duration,
     schedule: schedule,
+    objectiveHistory: result.objectiveHistory,
+    lowerBoundHistory: result.lowerBoundHistory,
   };
 
   fs.writeFileSync(outputJSON, JSON.stringify(output, null, 2));

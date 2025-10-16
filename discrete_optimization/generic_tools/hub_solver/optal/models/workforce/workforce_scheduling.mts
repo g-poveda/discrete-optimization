@@ -26,7 +26,7 @@ function readInstance(filename: string) {
 /**
  * Defines the CP model and returns it along with the variables needed for solution extraction.
  */
-function defineModelAndModes(filename: string, 
+function defineModelAndModes(filename: string,
     model_dispersion: boolean
 ) {
     let instance = readInstance(filename);
@@ -45,9 +45,9 @@ function defineModelAndModes(filename: string,
     // 1. Create task and mode variables
     for (const task of tasks) {
         let duration = tasksData[task].duration;
-        let startWindow = instance.start_window[task] || [0, horizon]; 
+        let startWindow = instance.start_window[task] || [0, horizon];
         let endWindow = instance.end_window[task] || [duration, horizon];
-        
+
         taskVars[task] = {
             main: model.intervalVar({ start: startWindow, end: endWindow, length: duration, name: `task_${task}` }),
             modes: [],
@@ -72,14 +72,14 @@ function defineModelAndModes(filename: string,
             model.endBeforeStart(taskVars[task].main, taskVars[succ].main);
         }
     }
-    
+
     for (const group of sameAllocation) {
          for (let i = 0; i < group.length - 1; i++) {
              const task1 = group[i];
              const task2 = group[i+1];
              const commonTeams = (compatibleTeams[task1] || teams).filter((t: any) => (compatibleTeams[task2] || teams).includes(t));
              for (const team of commonTeams) {
-                 model.constraint(model.eq(model.presenceOf(taskVars[task1].teamVars[team]), 
+                 model.constraint(model.eq(model.presenceOf(taskVars[task1].teamVars[team]),
                                   model.presenceOf(taskVars[task2].teamVars[team])));
              }
          }
@@ -98,20 +98,20 @@ function defineModelAndModes(filename: string,
         model.noOverlap(teamOptionalTasks[team]);
     }
 
-    // Now with calendar : 
+    // Now with calendar :
     for (const team of teams) {
         const intervalsForTeam = [...teamOptionalTasks[team]];
         const calendar = instance.calendar[team];
-        
+
         if (calendar) {
             // Calendar specifies AVAILABLE slots. We create fixed intervals for UNAVAILABLE slots.
             let lastAvailableEnd = 0;
             //calendar.sort((a: number[], b: number[]) => a[0] - b[0]);
-            
+
             for (const availableSlot of calendar) {
                 const availableStart = availableSlot[0];
                 const availableEnd = availableSlot[1];
-                
+
                 if (availableStart > lastAvailableEnd) {
                     const unavailableDuration = availableStart - lastAvailableEnd;
                     const unavailability = model.intervalVar({
@@ -123,7 +123,7 @@ function defineModelAndModes(filename: string,
                 }
                 lastAvailableEnd = availableEnd;
             }
-            
+
             // Add final unavailability block from the last slot to the horizon
             if (lastAvailableEnd < horizon) {
                 const unavailableDuration = horizon - lastAvailableEnd;
@@ -158,7 +158,7 @@ function defineModelAndModes(filename: string,
     }
     detailed_steps.push(model.stepAt(0, nbTeamsUsed));
     //console.log(`${detailed_steps}`);
-    model.cumulGe(model.cumulSum(detailed_steps), 0); // Cumulative with variable resource. 
+    model.cumulGe(model.cumulSum(detailed_steps), 0); // Cumulative with variable resource.
     let dispersion;
     let workload_per_team: CP.IntVar[] = [];
     if (model_dispersion){
@@ -171,11 +171,11 @@ function defineModelAndModes(filename: string,
         }
         dispersion = model.max(workload_per_team).minus(model.min(workload_per_team));
         model.constraint(dispersion.ge(0));
-    } 
+    }
     else{
         dispersion = 0;
     }
-    
+
     // 5. Set the final, prioritized objective
     if (model_dispersion){
             model.minimize(nbTeamsUsed.times(10000).plus(dispersion));
@@ -205,9 +205,9 @@ function defineModelRelaxed(filename: string) {
     // 1. Create task and mode variables
     for (const task of tasks) {
         let duration = tasksData[task].duration;
-        let startWindow = instance.start_window[task] || [0, horizon]; 
+        let startWindow = instance.start_window[task] || [0, horizon];
         let endWindow = instance.end_window[task] || [duration, horizon];
-        
+
         taskVars[task] = {
             main: model.intervalVar({ start: startWindow, end: endWindow, length: duration, name: `task_${task}` }),
             modes: [],
@@ -231,7 +231,7 @@ function defineModelRelaxed(filename: string) {
     }
     detailed_steps.push(model.stepAt(0, nbTeamsUsed));
     //console.log(`${detailed_steps}`);
-    model.cumulGe(model.cumulSum(detailed_steps), 0); // Cumulative with variable resource. 
+    model.cumulGe(model.cumulSum(detailed_steps), 0); // Cumulative with variable resource.
     model.minimize(nbTeamsUsed);
     // Return all necessary components for different execution modes
     return { model, taskVars, teams, tasks, nbTeamsUsed};
@@ -253,7 +253,7 @@ async function runAndExportJson(inputFilename: string, outputJSON: string, param
   const { model, taskVars, teams, tasks, teamsUsed, workload_per_team} = defineModelAndModes(inputFilename, modelDispersion);
   const result = await CP.solve(model, params);
   const solution = result.bestSolution;
-  
+
   // Use arrays to store results, ensuring order is preserved.
   const startTimes: number[] = [];
   const endTimes: number[] = [];
@@ -276,7 +276,7 @@ async function runAndExportJson(inputFilename: string, outputJSON: string, param
       let assignedTeam = 'N/A';
       let startTime = -1;
       let endTime = -1;
-      
+
       // Find which team mode was selected by the solver for this task.
       for (const team of teams) {
           const modeVar = taskVars[task].teamVars[team];
@@ -308,14 +308,14 @@ async function runAndExportJson(inputFilename: string, outputJSON: string, param
   console.log(`✅ Solution exported to ${outputJSON}`);
 }
 
-async function runLexicoExportJson(inputFilename: string, outputJSON: string, 
+async function runLexicoExportJson(inputFilename: string, outputJSON: string,
                                    params: CP.BenchmarkParameters) {
 
   //const d_relaxed = defineModelRelaxed(inputFilename);
   //const result__ = await CP.solve(d_relaxed.model, params);
   //const solution__ = result__.bestSolution;
   //let nbt = solution__?.getObjective() as number;
-  
+
 
   const { model, taskVars, teams, tasks, teamsUsed, workload_per_team, dispersion} = defineModelAndModes(inputFilename,
     false
@@ -328,7 +328,7 @@ async function runLexicoExportJson(inputFilename: string, outputJSON: string,
   solution_?.setObjective(10000);
   const d = defineModelAndModes(inputFilename, true);
   console.log(`${primary_obj}`);
-  d.model.constraint(d.model.sum(d.teamsUsed).le(primary_obj)); 
+  d.model.constraint(d.model.sum(d.teamsUsed).le(primary_obj));
   d.model.minimize(d.dispersion);
   const result = await CP.solve(d.model, params); //, solution);
   const solution = result.bestSolution;
@@ -352,7 +352,7 @@ async function runLexicoExportJson(inputFilename: string, outputJSON: string,
     const dispersion = Math.max(...workload_nz)-Math.min(...workload_nz);
     console.log(`Dispersion is ${dispersion}`);
     console.log(`Workload is ${workload_nz}`);
-    
+
     for (const team of teams) {
         recomputedWorkload[team] = 0
     };
@@ -360,7 +360,7 @@ async function runLexicoExportJson(inputFilename: string, outputJSON: string,
       let assignedTeam = 'N/A';
       let startTime = -1;
       let endTime = -1;
-      
+
       // Find which team mode was selected by the solver for this task.
       for (const team of teams) {
           const modeVar = d.taskVars[task].teamVars[team];
@@ -386,7 +386,7 @@ async function runLexicoExportJson(inputFilename: string, outputJSON: string,
     duration: result.duration,
     startTimes,
     endTimes,
-    teamAssignments, 
+    teamAssignments,
     recomputedWorkload
   };
 

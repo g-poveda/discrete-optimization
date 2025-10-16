@@ -39,8 +39,8 @@ function defineModelAndVarsJsonMine(filename: string): ModelWithVariables {
   const nonRenewableConsumptions: Map<string, CP.IntExpr[]> = new Map(resourceNames.map(r => [r, []]));
   const employeeCumuls: Map<string, CP.CumulExpr[]> = new Map<string, CP.CumulExpr[]>();
   const employeeIntervals: Map<string, CP.IntervalVar[]> = new Map<string, CP.IntervalVar[]>();
-  const employeeSkillsIntervals: Map<string, Map<string, Map<string, CP.IntervalVar>>> = new Map<string, 
-                                                                                                 Map<string, 
+  const employeeSkillsIntervals: Map<string, Map<string, Map<string, CP.IntervalVar>>> = new Map<string,
+                                                                                                 Map<string,
                                                                                                      Map<string, CP.IntervalVar>>>();
   for (const emp of employeeNames){
     employeeCumuls.set(emp, []);
@@ -56,7 +56,7 @@ function defineModelAndVarsJsonMine(filename: string): ModelWithVariables {
     modeVars.set(taskId, new Map<string, CP.IntervalVar>());
     employeeAssignmentVars.set(taskId, new Map<string, CP.IntervalVar>());
     employeeSkillsIntervals.set(taskId, new Map<string, Map<string, CP.IntervalVar>>());
-    
+
     for (const [modeId, modeData] of Object.entries(data.mode_details[taskId])) {
       const duration = (modeData as any).duration as number;
       const modeVar = model.intervalVar({ name: `Task_${taskId}_Mode_${modeId}`, length: duration, optional: true });
@@ -76,7 +76,7 @@ function defineModelAndVarsJsonMine(filename: string): ModelWithVariables {
                                                         optional:true});
                   employeeAssignmentVars.get(taskId)?.set(employee, empTaskVar);
                   employeeSkillsIntervals.get(taskId)?.set(employee, new Map<string, CP.IntervalVar>());
-                  
+
                   employeeCumuls.get(employee)?.push(empTaskVar.pulse(1));
                   employeeIntervals.get(employee)?.push(empTaskVar);
                   // Manually synchronize the intervals, when the employee is used, its interval is sync with the real interval.
@@ -90,7 +90,7 @@ function defineModelAndVarsJsonMine(filename: string): ModelWithVariables {
                   if(oneSkillUsedPerWorker){
                     const skillUserPerWorkerForTask = model.intervalVar({name: `Task_${taskId}_skill_${skill}_emp${employee}`,
                                                                          optional: true});
-                    employeeSkillsIntervals.get(taskId)?.get(employee)?.set(skill, skillUserPerWorkerForTask); 
+                    employeeSkillsIntervals.get(taskId)?.get(employee)?.set(skill, skillUserPerWorkerForTask);
                   }
                 }
                 if(oneSkillUsedPerWorker){
@@ -102,7 +102,7 @@ function defineModelAndVarsJsonMine(filename: string): ModelWithVariables {
                                           .times(data.employees[employee].dict_skill[skill].skill_value));
                 }
             }
-            model.constraint(model.implies(model.presenceOf(modeVar), 
+            model.constraint(model.implies(model.presenceOf(modeVar),
                                            model.sum(skillContributions).ge(requiredSkillLevel)));
         }
 
@@ -122,7 +122,7 @@ function defineModelAndVarsJsonMine(filename: string): ModelWithVariables {
       // The real task interval is constrained to the alternatives.
       model.alternative(taskVar, taskModeIntervals);
     }
-    
+
 
     if (oneSkillUsedPerWorker){
       //const keysList = [...employeeSkillsIntervals.get(taskId)?.keys()];
@@ -245,7 +245,7 @@ async function runMsRcpspAndExport(inputFilename: string, outputJSON: string, pa
                     }
                   }
                 }
-                
+
             }
         }
         if (assignedEmployees.length > 0) {

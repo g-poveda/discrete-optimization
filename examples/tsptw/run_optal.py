@@ -1,9 +1,8 @@
 #  Copyright (c) 2025 AIRBUS and its affiliates.
 #  This source code is licensed under the MIT license found in the
 #  LICENSE file in the root directory of this source tree.
-import os
-
 import logging
+import os
 
 from discrete_optimization.datasets import get_data_home
 from discrete_optimization.generic_tools.cp_tools import ParametersCp
@@ -26,9 +25,11 @@ def run_optal():
     res = solver.solve(
         time_limit=100,
         parameters_cp=p,
-        **{"worker0-1.searchType": "fdslb",
-           "worker0-1.noOverlapPropagationLevel": 4,
-           "worker0-1.cumulPropagationLevel": 3}
+        **{
+            "worker0-1.searchType": "fdslb",
+            "worker0-1.noOverlapPropagationLevel": 4,
+            "worker0-1.cumulPropagationLevel": 3,
+        }
     )
     sol = res.get_best_solution()
     print(problem.satisfy(sol), problem.evaluate(sol))

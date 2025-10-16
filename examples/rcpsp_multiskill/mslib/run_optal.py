@@ -16,14 +16,11 @@ from discrete_optimization.rcpsp_multiskill.plots.plot_solution import (
     plt,
 )
 from discrete_optimization.rcpsp_multiskill.problem import MultiskillRcpspSolution
-from discrete_optimization.rcpsp_multiskill.solvers.optal import (
-    OptalMSRcpspSolver,
-)
+from discrete_optimization.rcpsp_multiskill.solvers.optal import OptalMSRcpspSolver
 
 logger = logging.getLogger(__name__)
 this_folder = os.path.dirname(os.path.abspath(__file__))
 logging.basicConfig(level=logging.DEBUG)
-
 
 
 def example_mslib_optal():
@@ -33,16 +30,17 @@ def example_mslib_optal():
     solver = OptalMSRcpspSolver(
         problem=model,
     )
-    solver.init_model(one_skill_used_per_worker=False,
-                      one_worker_per_task=False)
+    solver.init_model(one_skill_used_per_worker=False, one_worker_per_task=False)
     p = ParametersCp.default_cpsat()
     p.nb_process = 10
     res = solver.solve(
         parameters_cp=p,
         time_limit=20,
-        **{"worker0-1.searchType": "fds",
-           "worker0-1.noOverlapPropagationLevel": 4,
-           "worker0-1.cumulPropagationLevel": 3}
+        **{
+            "worker0-1.searchType": "fds",
+            "worker0-1.noOverlapPropagationLevel": 4,
+            "worker0-1.cumulPropagationLevel": 3,
+        }
     )
     print(solver.status_solver)
     from discrete_optimization.rcpsp_multiskill.plots.plot_solution import (

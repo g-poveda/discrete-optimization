@@ -18,14 +18,19 @@ from discrete_optimization.generic_tools.hub_solver.optal.model_collections impo
     DoProblemEnum,
     problem_to_script_path,
 )
-from discrete_optimization.rcpsp_multiskill.problem import MultiskillRcpspProblem, MultiskillRcpspSolution
+from discrete_optimization.rcpsp_multiskill.problem import (
+    MultiskillRcpspProblem,
+    MultiskillRcpspSolution,
+)
 
 script_ = problem_to_script_path[DoProblemEnum.MSRCPSP]
 
 
-def dump_to_json(problem: MultiskillRcpspProblem,
-                 one_skill_used_per_worker: bool = False,
-                 one_worker_per_task: bool = False):
+def dump_to_json(
+    problem: MultiskillRcpspProblem,
+    one_skill_used_per_worker: bool = False,
+    one_worker_per_task: bool = False,
+):
     """Exports the problem description to a JSON file."""
     problem_dict = {
         "skills_set": list(problem.skills_set),
@@ -43,7 +48,7 @@ def dump_to_json(problem: MultiskillRcpspProblem,
         "source_task": problem.source_task,
         "sink_task": problem.sink_task,
         "one_skill_used_per_worker": one_skill_used_per_worker,
-        "one_worker_per_task": one_worker_per_task
+        "one_worker_per_task": one_worker_per_task,
     }
     return problem_dict
 
@@ -63,9 +68,11 @@ class OptalMSRcpspSolver(OptalSolver):
     def init_model(self, **args: Any) -> None:
         one_worker_per_task = args.get("one_worker_per_task", False)
         one_skill_used_per_worker = args.get("one_skill_used_per_worker", False)
-        output = dump_to_json(self.problem,
-                              one_skill_used_per_worker=one_skill_used_per_worker,
-                              one_worker_per_task=one_worker_per_task)
+        output = dump_to_json(
+            self.problem,
+            one_skill_used_per_worker=one_skill_used_per_worker,
+            one_worker_per_task=one_worker_per_task,
+        )
 
         d = datetime.datetime.now().timestamp()
         file_input_path = os.path.join(self.temp_directory, f"tmp-{d}.json")
@@ -114,13 +121,22 @@ class OptalMSRcpspSolver(OptalSolver):
                     if emp_key in employee_skill_usage.get(key, {}):
                         non_zeros = employee_skill_usage[key][emp_key]
                     else:
-                        non_zeros = self.problem.employees[emp_key].get_non_zero_skills()
-                    usefull_skills = [s
-                                      for s in self.problem.skills_set
-                                      if self.problem.mode_details[str_to_task[key]]
-                                      [modes_dict[str_to_task[key]]].get(s, 0) > 0]
-                    s = [skill for skill in self.problem.skills_set
-                         if skill in non_zeros and skill in usefull_skills]
+                        non_zeros = self.problem.employees[
+                            emp_key
+                        ].get_non_zero_skills()
+                    usefull_skills = [
+                        s
+                        for s in self.problem.skills_set
+                        if self.problem.mode_details[str_to_task[key]][
+                            modes_dict[str_to_task[key]]
+                        ].get(s, 0)
+                        > 0
+                    ]
+                    s = [
+                        skill
+                        for skill in self.problem.skills_set
+                        if skill in non_zeros and skill in usefull_skills
+                    ]
                     if str_to_task[key] not in employee_usage:
                         employee_usage[str_to_task[key]] = {}
                     employee_usage[str_to_task[key]][emp_key] = set(s)
@@ -134,5 +150,5 @@ class OptalMSRcpspSolver(OptalSolver):
             problem=self.problem,
             schedule=schedule,
             modes=modes_dict,
-            employee_usage=employee_usage
+            employee_usage=employee_usage,
         )

@@ -135,6 +135,10 @@ INSTANCE_DIV_ID = "instance-div"
 RUN_ID = "run-id"
 RUN_DIV_ID = "run-id-div"
 
+Y_LOGSCALE_KEY = "y-axis log-scale"
+Y_LOGSCALE_ID = "y-log-scale"
+Y_LOGSCALE_DIV_ID = "y-log-scale-div"
+
 
 class Dashboard(Dash):
     def __init__(
@@ -231,6 +235,17 @@ class Dashboard(Dash):
                             id=TIME_LOGSCALE_DIV_ID,
                             style=filter_style,
                         ),
+                        html.Div(  # <-- ADD THIS WHOLE DIV
+                            [
+                                dbc.Switch(
+                                    label=Y_LOGSCALE_KEY,
+                                    value=False,
+                                    id=Y_LOGSCALE_ID,
+                                ),
+                            ],
+                            id=Y_LOGSCALE_DIV_ID,
+                            style=filter_style,
+                        ),
                         html.Div(
                             [
                                 dbc.Label("Configs"),
@@ -300,6 +315,21 @@ class Dashboard(Dash):
                                 ),
                             ],
                             id=Q_DIV_ID,
+                            style=filter_style,
+                        ),
+                        html.Div(
+                            [
+                                dbc.Label("Min. proportion of data for aggregation"),
+                                dcc.Slider(
+                                    min=0,
+                                    max=1,
+                                    step=0.05,
+                                    value=1.0,  # Default to 0% (at least one data point)
+                                    marks={i / 10: f"{i * 10}%" for i in range(11)},
+                                    id="min-exp-proportion-slider",
+                                ),
+                            ],
+                            id="min-exp-proportion-div",
                             style=filter_style,
                         ),
                         html.Div(
@@ -612,10 +642,24 @@ class Dashboard(Dash):
                 with_time_log_scale=Input(
                     component_id=TIME_LOGSCALE_ID, component_property="value"
                 ),
+                min_exp_proportion=Input(  # <-- ADD THIS INPUT
+                    component_id="min-exp-proportion-slider", component_property="value"
+                ),
+                with_y_log_scale=Input(  # <-- ADD THIS
+                    component_id=Y_LOGSCALE_ID, component_property="value"
+                ),
             ),
         )
         def update_graph_agg_metric(
-            configs, instances, stat, metric, q, with_time_log_scale, clip_value
+            configs,
+            instances,
+            stat,
+            metric,
+            q,
+            with_time_log_scale,
+            clip_value,
+            min_exp_proportion,
+            with_y_log_scale,
         ):
             instances = self._replace_instances_aliases(
                 instances, configs=configs
@@ -627,7 +671,11 @@ class Dashboard(Dash):
                 if config in configs
             }
             stat_by_config = compute_stat_by_config(
-                results_by_config=results_by_config, stat=stat, q=q, instances=instances
+                results_by_config=results_by_config,
+                stat=stat,
+                q=q,
+                instances=instances,
+                min_exp_proportion=min_exp_proportion,
             )
             stat_metric_by_config = {
                 config: df[metric]
@@ -651,6 +699,7 @@ class Dashboard(Dash):
                     map_label2ser=stat_metric_by_config,
                     with_time_log_scale=with_time_log_scale,
                     legend_title="Configs",
+                    with_y_log_scale=with_y_log_scale,
                 ),
                 data=_extract_dash_table_data_from_df(df_summary),
                 columns=_extract_dash_table_columns_from_df(

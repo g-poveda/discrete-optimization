@@ -106,6 +106,7 @@ class SimulatedAnnealing(SolverDO, WarmstartMixin):
                 initial_variable = self.initial_solution
 
         objective = self.aggreg_from_dict(self.problem.evaluate(initial_variable))
+        print(initial_variable.permutation)
         cur_variable = initial_variable.copy()
         cur_objective = objective
         cur_best_objective = objective

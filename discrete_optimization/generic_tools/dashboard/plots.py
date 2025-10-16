@@ -23,6 +23,7 @@ logger = logging.getLogger(__name__)
 def create_graph_from_series_dict(
     map_label2ser: dict[str, pd.Series],
     with_time_log_scale: bool = False,
+    with_y_log_scale: bool = False,
     legend_title: str = "labels",
     transpose: bool = False,
 ) -> go.Figure:
@@ -67,6 +68,11 @@ def create_graph_from_series_dict(
             fig.update_yaxes(type="log")
         else:
             fig.update_xaxes(type="log")
+    if with_y_log_scale:
+        if transpose:
+            fig.update_xaxes(type="log")
+        else:
+            fig.update_yaxes(type="log")
     return fig
 
 

@@ -512,13 +512,21 @@ class CpmpySolver(CpSolver):
         soft_cpmpy = [cpmpy.all(meta.constraints) for meta in soft_normalized]
         hard_cpmpy = [cpmpy.all(meta.constraints) for meta in hard_normalized]
         # handle trivial False constraints
-        soft_with_trivial_false = [
-            meta for cstr, meta in zip(soft_cpmpy, soft) if not cstr
-        ]
+        soft_with_trivial_false = []
+        for cstr, meta in zip(soft_cpmpy, soft):
+            try:
+                if not cstr:
+                    soft_with_trivial_false.append(meta)
+            except:
+                pass
+        # soft_with_trivial_false = [
+        #   meta for cstr, meta in zip(soft_cpmpy, soft) if not cstr
+        # ]
         soft_wo_trivial_false = [
             meta for meta in soft if meta not in soft_with_trivial_false
         ]
-        soft_cpmpy_wo_trivial_false = [cstr for cstr in soft_cpmpy if cstr]
+        soft_cpmpy_wo_trivial_false = soft_cpmpy
+        # soft_cpmpy_wo_trivial_false = [cstr for cstr in soft_cpmpy if cstr]
         if (
             len(soft_with_trivial_false) > 0
             and not include_all_trivial_false_constraints

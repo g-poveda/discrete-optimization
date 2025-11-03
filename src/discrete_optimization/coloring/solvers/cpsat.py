@@ -1,14 +1,20 @@
 #  Copyright (c) 2024 AIRBUS and its affiliates.
 #  This source code is licensed under the MIT license found in the
 #  LICENSE file in the root directory of this source tree.
+import logging
 from enum import Enum
 from typing import Any, Optional, Union
 
-from ortools.sat.python.cp_model import CpSolverSolutionCallback, IntVar
+from ortools.sat.python.cp_model import CpSolverSolutionCallback, IntVar, LinearExprT
 
-from discrete_optimization.coloring.problem import ColoringSolution
+from discrete_optimization.coloring.problem import Color, ColoringSolution, Node
 from discrete_optimization.coloring.solvers.starting_solution import (
     WithStartingSolutionColoringSolver,
+)
+from discrete_optimization.generic_tasks_tools.allocation import UnaryResource
+from discrete_optimization.generic_tasks_tools.base import Task
+from discrete_optimization.generic_tasks_tools.solvers.cpsat import (
+    AllocationCpSatSolver,
 )
 from discrete_optimization.generic_tools.do_problem import (
     ParamsObjectiveFunction,
@@ -20,7 +26,8 @@ from discrete_optimization.generic_tools.hyperparameters.hyperparameter import (
     CategoricalHyperparameter,
     EnumHyperparameter,
 )
-from discrete_optimization.generic_tools.ortools_cpsat_tools import OrtoolsCpSatSolver
+
+logger = logging.getLogger(__name__)
 
 
 class ModelingCpSat(Enum):
@@ -29,7 +36,9 @@ class ModelingCpSat(Enum):
 
 
 class CpSatColoringSolver(
-    OrtoolsCpSatSolver, WithStartingSolutionColoringSolver, WarmstartMixin
+    WithStartingSolutionColoringSolver,
+    AllocationCpSatSolver[Node, Color],
+    WarmstartMixin,
 ):
     hyperparameters = [
         EnumHyperparameter(
@@ -71,6 +80,9 @@ class CpSatColoringSolver(
         ] = {}
 
     def retrieve_solution(self, cpsolvercb: CpSolverSolutionCallback) -> Solution:
+        logger.info(
+            f"Obj= {cpsolvercb.objective_value}, bound={cpsolvercb.best_objective_bound}"
+        )
         if self.modeling == ModelingCpSat.INTEGER:
             return ColoringSolution(
                 problem=self.problem,
@@ -79,7 +91,7 @@ class CpSatColoringSolver(
                     for i in range(len(self.variables["colors"]))
                 ],
             )
-        if self.modeling == ModelingCpSat.BINARY:
+        elif self.modeling == ModelingCpSat.BINARY:
             colors = [None for i in range(len(self.variables["colors"]))]
             for i in range(len(self.variables["colors"])):
                 c = next(
@@ -92,6 +104,7 @@ class CpSatColoringSolver(
                 )
                 colors[i] = c
             return ColoringSolution(problem=self.problem, colors=colors)
+        return None
 
     def init_model_binary(self, nb_colors: int, **kwargs):
         super().init_model(**kwargs)
@@ -229,10 +242,21 @@ class CpSatColoringSolver(
             solution = self.get_starting_solution(**args)
             nb_colors = self.problem.count_colors_all_index(solution.colors)
             args["nb_colors"] = min(args.get("nb_colors", nb_colors), nb_colors)
+        self.modeling = modeling
         if modeling == ModelingCpSat.BINARY:
             self.init_model_binary(**args)
         if modeling == ModelingCpSat.INTEGER:
             self.init_model_integer(**args)
         if do_warmstart:
             self.set_warm_start(solution=solution)
-        self.modeling = modeling
+
+    def get_task_unary_resource_is_present_variable(
+        self, task: Node, unary_resource: Color
+    ) -> LinearExprT:
+        if self.modeling == ModelingCpSat.BINARY:
+            if unary_resource is self.variables["colors"][task]:
+                return self.variables["colors"][task]
+            else:
+                return 0
+        # What to do here.
+        return None

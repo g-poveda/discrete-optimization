@@ -174,7 +174,7 @@ class AllocationCpSolver(TasksCpSolver[Task], Generic[Task, UnaryResource]):
     def add_constraint_on_nb_allocation_changes(
         self, ref: AllocationSolution[Task, UnaryResource], nb_changes: int
     ) -> list[Any]:
-        """Add contraint on maximal number of allocation changes from the given reference.
+        """Add constraint on maximal number of allocation changes from the given reference.
 
         Args:
             ref:

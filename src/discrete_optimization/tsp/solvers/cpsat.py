@@ -5,6 +5,13 @@
 import logging
 from typing import Any, Optional
 
+from ortools.sat.python.cp_model import LinearExprT
+
+from discrete_optimization.generic_tasks_tools.base import Task
+from discrete_optimization.generic_tasks_tools.enums import StartOrEnd
+from discrete_optimization.generic_tasks_tools.solvers.cpsat import (
+    SchedulingCpSatSolver,
+)
 from discrete_optimization.generic_tools.do_problem import (
     ParamsObjectiveFunction,
     Problem,
@@ -13,16 +20,15 @@ from discrete_optimization.generic_tools.do_problem import (
 from discrete_optimization.generic_tools.do_solver import WarmstartMixin
 from discrete_optimization.generic_tools.ortools_cpsat_tools import (
     CpSolverSolutionCallback,
-    OrtoolsCpSatSolver,
 )
-from discrete_optimization.tsp.problem import TspProblem, TspSolution
+from discrete_optimization.tsp.problem import Node, TspProblem, TspSolution
 from discrete_optimization.tsp.solvers import TspSolver
 from discrete_optimization.tsp.utils import build_matrice_distance
 
 logger = logging.getLogger(__name__)
 
 
-class CpSatTspSolver(OrtoolsCpSatSolver, TspSolver, WarmstartMixin):
+class CpSatTspSolver(TspSolver, SchedulingCpSatSolver[Node], WarmstartMixin):
     def __init__(
         self,
         problem: Problem,
@@ -36,6 +42,67 @@ class CpSatTspSolver(OrtoolsCpSatSolver, TspSolver, WarmstartMixin):
             method=self.problem.evaluate_function_indexes,
         )
         self.distance_matrix[self.problem.end_index, self.problem.start_index] = 0
+        self.init_positional_variable = False
+
+    def init_model(self, **args: Any) -> None:
+        super().init_model(**args)
+        model = self.cp_model
+        num_nodes = self.problem.node_count
+        all_nodes = range(num_nodes)
+        obj_vars = []
+        obj_coeffs = []
+        arcs = []
+        arc_literals = {}
+        for i in all_nodes:
+            for j in all_nodes:
+                if i == j:
+                    continue
+                lit = model.new_bool_var(f"{j} follows {i}")
+                arcs.append((i, j, lit))
+                arc_literals[i, j] = lit
+                obj_vars.append(lit)
+                obj_coeffs.append(int(self.distance_matrix[i, j]))
+        model.add_circuit(arcs)
+        if self.problem.start_index != self.problem.end_index:
+            model.Add(
+                arc_literals[self.problem.end_index, self.problem.start_index] == True
+            )
+        model.minimize(sum(obj_vars[i] * obj_coeffs[i] for i in range(len(obj_vars))))
+        self.variables["arc_literals"] = arc_literals
+        # self.define_positional_variables()
+
+    def get_task_start_or_end_variable(
+        self, task: Task, start_or_end: StartOrEnd
+    ) -> LinearExprT:
+        if not self.init_positional_variable:
+            self.define_positional_variables()
+        if start_or_end == StartOrEnd.START:
+            return self.variables["position"][task]
+        else:
+            return self.variables["position"][task] + 1
+
+    def define_positional_variables(self) -> None:
+        """
+        For each node to visit, stock the index of visit. constrained via the arcs variable.
+        """
+        nodes = self.problem.tasks_list
+        position_var = {self.problem.start_index: -1}
+        if self.problem.start_index != self.problem.end_index:
+            position_var[self.problem.end_index] = self.problem.node_count - 2
+        for n in nodes:
+            position_var[n] = self.cp_model.new_int_var(
+                lb=0, ub=self.problem.node_count - 2, name=f"position_{n}"
+            )
+        for i, j in self.variables["arc_literals"]:
+            if j in {self.problem.start_index, self.problem.end_index}:
+                continue
+            (
+                self.cp_model.add(
+                    position_var[j] == position_var[i] + 1
+                ).only_enforce_if(self.variables["arc_literals"][i, j])
+            )
+        self.init_positional_variable = True
+        self.variables["position"] = position_var
 
     def set_warm_start(self, solution: TspSolution) -> None:
         """Make the solver warm start from the given solution."""
@@ -68,12 +135,18 @@ class CpSatTspSolver(OrtoolsCpSatSolver, TspSolver, WarmstartMixin):
                 if i == j:
                     continue
                 self.cp_model.AddHint(self.variables["arc_literals"][i, j], hints[i, j])
+        if self.init_positional_variable:
+            for n in self.problem.tasks_list:
+                self.cp_model.AddHint(
+                    self.variables["position"][n], solution.get_start_time(n)
+                )
 
     def retrieve_solution(self, cpsolvercb: CpSolverSolutionCallback) -> Solution:
         current_node = self.problem.start_index
         route_is_finished = False
         path = []
         route_distance = 0
+
         while not route_is_finished:
             for i in range(self.problem.node_count):
                 if i == current_node:
@@ -97,29 +170,3 @@ class CpSatTspSolver(OrtoolsCpSatSolver, TspSolver, WarmstartMixin):
             if self.problem.start_index == self.problem.end_index
             else path[:-1],
         )
-
-    def init_model(self, **args: Any) -> None:
-        super().init_model(**args)
-        model = self.cp_model
-        num_nodes = self.problem.node_count
-        all_nodes = range(num_nodes)
-        obj_vars = []
-        obj_coeffs = []
-        arcs = []
-        arc_literals = {}
-        for i in all_nodes:
-            for j in all_nodes:
-                if i == j:
-                    continue
-                lit = model.new_bool_var(f"{j} follows {i}")
-                arcs.append((i, j, lit))
-                arc_literals[i, j] = lit
-                obj_vars.append(lit)
-                obj_coeffs.append(int(self.distance_matrix[i, j]))
-        model.add_circuit(arcs)
-        if self.problem.start_index != self.problem.end_index:
-            model.Add(
-                arc_literals[self.problem.end_index, self.problem.start_index] == True
-            )
-        model.minimize(sum(obj_vars[i] * obj_coeffs[i] for i in range(len(obj_vars))))
-        self.variables["arc_literals"] = arc_literals

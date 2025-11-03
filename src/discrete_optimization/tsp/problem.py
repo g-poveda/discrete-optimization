@@ -14,6 +14,11 @@ import numpy as np
 import numpy.typing as npt
 from numba import njit
 
+from discrete_optimization.generic_tasks_tools.base import Task
+from discrete_optimization.generic_tasks_tools.scheduling import (
+    SchedulingProblem,
+    SchedulingSolution,
+)
 from discrete_optimization.generic_tools.do_problem import (
     EncodingRegister,
     ModeOptim,
@@ -26,8 +31,10 @@ from discrete_optimization.generic_tools.do_problem import (
     TypeObjective,
 )
 
+Node = int
 
-class TspSolution(Solution):
+
+class TspSolution(SchedulingSolution[Node]):
     permutation_from0: list[int]
     start_index: int
     end_index: int
@@ -125,11 +132,21 @@ class TspSolution(Solution):
             self.lengths = list(self.lengths)
         self.permutation_from0 = list(self.permutation_from0)
 
+    def get_end_time(self, task: Task) -> int:
+        if task in self.permutation:
+            return self.permutation.index(task) + 1
+        return 0
+
+    def get_start_time(self, task: Task) -> int:
+        if task in self.permutation:
+            return self.permutation.index(task)
+        return 0
+
 
 class Point: ...
 
 
-class TspProblem(Problem):
+class TspProblem(SchedulingProblem[Node]):
     list_points: Sequence[Point]
     np_points: np.ndarray
     node_count: int
@@ -162,6 +179,12 @@ class TspProblem(Problem):
             if i != self.start_index and i != self.end_index:
                 self.original_indices_to_permutation_indices_dict[i] = counter
                 counter += 1
+
+        # For the scheduling mixin.
+        self.tasks_list = self.original_indices_to_permutation_indices
+
+    def get_makespan_upper_bound(self) -> int:
+        return len(self.tasks_list)
 
     # for a given tsp kind of problem, you should provide a custom evaluate function, for now still abstract.
     @abstractmethod

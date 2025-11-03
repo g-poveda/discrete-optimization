@@ -86,8 +86,11 @@ class ConstraintHandler(Hyperparametrizable):
         """
         if len(result_storage_last_iteration) > 0:
             sol, _ = result_storage_last_iteration.get_last_best_solution()
+            sol = result_storage_last_iteration[-1][0]
         else:
             sol, _ = result_storage.get_last_best_solution()
+            sol = result_storage[-1][0]
+
         return sol
 
 

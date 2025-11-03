@@ -13,6 +13,10 @@ from typing import Optional, Union
 
 import numpy as np
 
+from discrete_optimization.generic_tasks_tools.allocation import (
+    AllocationProblem,
+    AllocationSolution,
+)
 from discrete_optimization.generic_tools.do_problem import (
     EncodingRegister,
     ModeOptim,
@@ -26,8 +30,11 @@ from discrete_optimization.generic_tools.do_problem import (
 )
 from discrete_optimization.generic_tools.graph_api import Graph
 
+Node = int
+Color = int
 
-class ColoringSolution(Solution):
+
+class ColoringSolution(AllocationSolution[Node, Color]):
     """Solution class for graph coloring problem.
 
     The object contains a pointer to the problem instance,
@@ -100,12 +107,11 @@ class ColoringSolution(Solution):
         )
 
     def to_reformated_solution(self) -> "ColoringSolution":
-        """Computes a new solution where the colors array has a value precede chain (see more details https://www.minizinc.org/doc-2.5.3/en/lib-globals.html#index-62) property.
-
+        """Computes a new solution where the colors array has a value precede chain
+        (see more details https://www.minizinc.org/doc-2.5.3/en/lib-globals.html#index-62) property.
          Examples : [1, 4, 4, 3, 2, 4] doesnt respect the value_precede_chain because 4 appears before 2 and 3.
          A transformed vector would be : [1, 2, 2, 3, 4, 2].
          For the coloring problem it is the same solution but this time we respect value_precede.
-
         The resulting solution is equivalent for the optimization problem to solve, but can reduce a lot the search space
         Returns: New ColoringSolution object with value precede chain property.
 
@@ -163,6 +169,9 @@ class ColoringSolution(Solution):
         else:
             self.colors = list(self.colors)
         self.problem = new_problem
+
+    def is_allocated(self, task: Node, unary_resource: Color) -> bool:
+        return self.colors[task] == unary_resource
 
 
 def transform_color_values_to_value_precede(color_vector: list[int]) -> list[int]:
@@ -230,7 +239,7 @@ class ColoringConstraints:
             return set()
 
 
-class ColoringProblem(Problem):
+class ColoringProblem(AllocationProblem[Node, Color]):
     """Coloring problem class implementation.
 
     Attributes:
@@ -267,6 +276,12 @@ class ColoringProblem(Problem):
         self.use_subset = len(self.subset_nodes) < len(self.nodes_name)
         self.constraints_coloring = constraints_coloring
         self.has_constraints_coloring = constraints_coloring is not None
+
+        # For the allocation mixin:
+        self.tasks_list = range(self.number_of_nodes)
+        self.unary_resources_list = range(
+            self.number_of_nodes
+        )  # dummy number of value.
 
     def is_in_subset_index(self, index: int) -> bool:
         if not self.use_subset:

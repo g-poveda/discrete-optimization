@@ -62,7 +62,7 @@ class OptalTspSolver(SchedulingOptalSolver[Node]):
             self.modeling = ModelingTspEnum.V0
             self.init_model_v1(**args)
         if args["modeling"] == ModelingTspEnum.V1:
-            self.init_model_v1(scaling=args.get("scaling", 100), **args)
+            self.init_model_v1(**args)
             self.modeling = ModelingTspEnum.V1
 
     def init_model_v0(self, **args: Any) -> None:

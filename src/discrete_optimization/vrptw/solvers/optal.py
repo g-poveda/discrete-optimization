@@ -157,13 +157,21 @@ class OptalVRPTWSolver(SchedulingOptalSolver[Task]):
 
         for v in range(self.problem.nb_vehicles):
             seq = self.cp_model.sequence_var(
-                [self.cp_model.interval_var(start=0, end=0, length=0, optional=False)]
+                [
+                    self.cp_model.interval_var(
+                        start=0, end=0, length=0, optional=False, name=f"start_{v}"
+                    )
+                ]
                 + [intervals_per_vehicle[v][node] for node in self.problem.customers]
                 + [intervals_come_back[v]],
                 types=[depot] + self.problem.customers + [depot],
             )
             seq_2 = self.cp_model.sequence_var(
-                [self.cp_model.interval_var(start=0, end=0, length=0, optional=False)]
+                [
+                    self.cp_model.interval_var(
+                        start=0, end=0, length=0, optional=False, name=f"start_dist_{v}"
+                    )
+                ]
                 + [
                     intervals_distance_per_vehicle[v][node]
                     for node in self.problem.customers
@@ -215,13 +223,10 @@ class OptalVRPTWSolver(SchedulingOptalSolver[Task]):
                     all_intervals.append((st, end, n))
             sorted_intervals = sorted(all_intervals, key=lambda x: x[0])
             routes.append([x[2] for x in sorted_intervals])
-            cumul_time = 0
-            current_node = self.problem.depot_node
-            for n in routes[-1]:
-                cumul_time += self.distance_matrix[current_node][n]
-                current_node = n
+            # cumul_time = 0
+            # current_node = self.problem.depot_node
+            # for n in routes[-1]:
+            #     cumul_time += self.distance_matrix[current_node][n]
+            #     current_node = n
         sol = VRPTWSolution(problem=self.problem, routes=routes)
-        # print(result.solution.get_value(self.variables["nb_vehicles"]))
-        # print(result.solution.get_value(self.variables["total_distance"]))
-        print(self.problem.evaluate(sol))
         return sol

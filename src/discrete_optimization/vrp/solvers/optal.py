@@ -193,10 +193,10 @@ class OptalVrpSolver(OptalCpSolver):
             path = []
             for n in self.variables["intervals"][v]:
                 if result.solution.is_present(self.variables["intervals"][v][n]):
-                    st, end = result.solution.get_value(
+                    start_time, end_time = result.solution.get_value(
                         self.variables["intervals"][v][n]
                     )
-                    path.append((st, end, n))
+                    path.append((start_time, end_time, n))
             path = sorted(path, key=lambda x: x[0])
             paths.append([p[2] for p in path])
         sol = VrpSolution(

@@ -7,6 +7,8 @@ from collections.abc import Iterable
 from enum import Enum
 from typing import Any, Optional
 
+from discrete_optimization.generic_tasks_tools.enums import StartOrEnd
+
 try:
     import optalcp as cp
 except ImportError:
@@ -57,8 +59,8 @@ class OptalColoringSolver(
     def get_task_unary_resource_is_present_variable(
         self, task: Task, unary_resource: UnaryResource
     ) -> cp.BoolExpr:
-        return self.get_task_interval_variable(
-            task
+        return self.get_task_start_or_end_variable(
+            task, start_or_end=StartOrEnd.START
         ) == self.problem.get_index_from_unary_resource(unary_resource)
 
     def get_task_interval_variable(self, task: Task) -> cp.IntervalVar:
@@ -95,7 +97,7 @@ class OptalColoringSolver(
         for n in self.problem.tasks_list:
             intervals[n] = self.cp_model.interval_var(
                 start=(0, nb_colors - 1),
-                end=(1, nb_colors - 1),
+                end=(1, nb_colors),
                 length=1,
                 optional=False,
                 name=f"interval_{n}",
@@ -108,7 +110,6 @@ class OptalColoringSolver(
             g = self.problem.graph.to_networkx()
             cliques, not_all = compute_cliques(g, args["max_cliques"])
             for clique in cliques:
-                print(len(clique))
                 self.cp_model.no_overlap([intervals[c] for c in clique])
         self.cp_model.minimize(
             self.cp_model.max(

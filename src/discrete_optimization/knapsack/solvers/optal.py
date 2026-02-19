@@ -10,7 +10,6 @@ try:
     import optalcp as cp
 except ImportError:
     cp = None
-from discrete_optimization.generic_tasks_tools.allocation import UnaryResource
 from discrete_optimization.generic_tasks_tools.base import Task
 from discrete_optimization.generic_tasks_tools.solvers.optalcp_tasks_solver import (
     AllocationOptalSolver,
@@ -65,9 +64,12 @@ class OptalKnapsackSolver(AllocationOptalSolver[Item, Knapsack], KnapsackSolver)
         self.variables["intervals"] = intervals
 
     def get_task_unary_resource_is_present_variable(
-        self, task: Task, unary_resource: UnaryResource
+        self, task: Task, unary_resource: Knapsack
     ) -> cp.BoolExpr:
-        return self.cp_model.presence(self.variables["intervals"])
+        if unary_resource:
+            return self.cp_model.presence(self.variables["intervals"][task])
+        else:
+            return ~self.cp_model.presence(self.variables["intervals"][task])
 
     def retrieve_solution(self, result: cp.SolveResult) -> Solution:
         taken = [

@@ -27,8 +27,6 @@ except ImportError:
 class OptalRcpspSolver(
     SchedulingOptalSolver[Task], MultimodeOptalSolver[Task], RcpspSolver, WarmstartMixin
 ):
-    """Solver for RCPSP using the OptalCP TypeScript API (fallback if Python API is not available)"""
-
     problem: RcpspProblem
 
     def __init__(

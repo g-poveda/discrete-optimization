@@ -60,12 +60,11 @@ class OptalTspSolver(SchedulingOptalSolver[Node]):
 
     def init_model(self, **args: Any) -> None:
         args = self.complete_with_default_hyperparameters(args)
-        if args["modeling"] == ModelingTspEnum.V0:
-            self.modeling = ModelingTspEnum.V0
+        self.modeling = args["modeling"]
+        if self.modeling == ModelingTspEnum.V0:
+            self.init_model_v0(**args)
+        if self.modeling == ModelingTspEnum.V1:
             self.init_model_v1(**args)
-        if args["modeling"] == ModelingTspEnum.V1:
-            self.init_model_v1(**args)
-            self.modeling = ModelingTspEnum.V1
 
     def init_model_v0(self, **args: Any) -> None:
         """Model from gpd"""
@@ -86,7 +85,6 @@ class OptalTspSolver(SchedulingOptalSolver[Node]):
         self.cp_model.enforce(
             self.cp_model.start(visits[self.problem.start_index]) == 0
         )
-        seq.no_overlap()
         self.cp_model.no_overlap(
             seq,
             [

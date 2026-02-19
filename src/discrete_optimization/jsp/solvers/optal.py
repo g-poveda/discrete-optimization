@@ -21,8 +21,6 @@ from discrete_optimization.jsp.problem import JobShopProblem, JobShopSolution, T
 
 
 class OptalJspSolver(SchedulingOptalSolver[Task]):
-    """Solver for JSP using the OptalCP TypeScript API (fallback if Python API is not available)"""
-
     problem: JobShopProblem
 
     def __init__(

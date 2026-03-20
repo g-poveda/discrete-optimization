@@ -291,6 +291,7 @@ class CpSatRCALBPLSolver(
         cycle_time_used = {}
         cycle_time_chosen = {}
         self.variables["is_decreasing"] = {}
+        self.variables["is_lower_than_ctarget"] = {}
         max_horizon = self.problem.c_max
 
         for p in self.problem.periods:
@@ -303,7 +304,19 @@ class CpSatRCALBPLSolver(
             for task in self.problem.tasks:
                 self.cp_model.add(cycle_time_used[p] >= self.variables["ends"][task, p])
             self.cp_model.add(cycle_time_chosen[p] >= cycle_time_used[p])
-
+            self.variables["is_lower_than_ctarget"][p] = self.cp_model.new_bool_var(
+                f"is_lower_than_ctarget_{p}"
+            )
+            self.cp_model.add(
+                cycle_time_used[p] <= self.problem.c_target
+            ).only_enforce_if(self.variables["is_lower_than_ctarget"][p])
+            self.cp_model.add(
+                cycle_time_used[p] > self.problem.c_target
+            ).only_enforce_if(~self.variables["is_lower_than_ctarget"][p])
+            if p >= self.problem.nb_stations:
+                self.cp_model.add(
+                    cycle_time_chosen[p] == self.problem.c_target
+                ).only_enforce_if(self.variables["is_lower_than_ctarget"][p])
         self.variables["cycle_time_used"] = cycle_time_used
         self.variables["cycle_time_chosen"] = cycle_time_chosen
 

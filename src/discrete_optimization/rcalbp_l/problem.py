@@ -260,13 +260,15 @@ class RCALBPLProblem(SchedulingProblem[Task], AllocationProblem[Task, WorkStatio
         for p in self.periods:
             cyc_p = variable.cyc[p]
             if cyc_p < self.c_target or cyc_p > self.c_max:
+                print(cyc_p, self.c_max, self.c_target)
                 print("lower than c-target or upper than cmax")
                 violation_cycle_time += 1
             # Unstable periods cannot change their cycle time
             if self.nb_stations > p >= 1:
-                if variable.cyc[p] != variable.cyc[p - 1]:
-                    print("didn't respect the frozen")
-                    violation_cycle_time += 1
+                if p - 1 in variable.cyc:
+                    if variable.cyc[p] != variable.cyc[p - 1]:
+                        print("didn't respect the frozen")
+                        violation_cycle_time += 1
             # Check if cycle time is respected by all tasks scheduled in p
             for t in self.tasks:
                 w = variable.wks[t]

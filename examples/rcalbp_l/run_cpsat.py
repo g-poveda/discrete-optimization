@@ -9,9 +9,6 @@ from discrete_optimization.rcalbp_l.problem import (
     RCALBPLSolution,
 )
 from discrete_optimization.rcalbp_l.solvers.cpsat import CpSatRCALBPLSolver
-from discrete_optimization.rcalbp_l.solvers.sequential_solver import (
-    BackwardSequentialRCALBPLSolver,
-)
 from examples.rcalbp_l.plot import plot_rcalbpl_dashboard
 
 logging.basicConfig(level=logging.INFO)
@@ -43,16 +40,19 @@ def main_sequential():
         SequentialMetasolver,
         SubBrick,
     )
+    from discrete_optimization.rcalbp_l.solvers.meta_solvers import (
+        BackwardSequentialRCALBPLSolverSGS,
+    )
 
     p = ParametersCp.default_cpsat()
-    p.nb_process = 8
+    p.nb_process = 12
     brick1 = SubBrick(
-        BackwardSequentialRCALBPLSolver,
+        BackwardSequentialRCALBPLSolverSGS,
         kwargs=dict(
             future_chunk_size=1,
             phase2_chunk_size=5,
-            time_limit_phase1=200,
-            time_limit_phase2=200,
+            time_limit_phase1=100,
+            time_limit_phase2=30,
             use_sgs_warm_start=True,
             parameters_cp=p,
             ortools_cpsat_solver_kwargs=dict(log_search_progress=True),

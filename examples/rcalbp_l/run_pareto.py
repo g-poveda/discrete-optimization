@@ -9,12 +9,12 @@ from discrete_optimization.generic_tools.cp_tools import ParametersCp
 from discrete_optimization.generic_tools.pareto_tools import CpsatParetoSolver
 from discrete_optimization.rcalbp_l.parser import parse_rcalbpl_json
 from discrete_optimization.rcalbp_l.solvers.cpsat import CpSatRCALBPLSolver
+from discrete_optimization.rcalbp_l.solvers.meta_solvers import (
+    BackwardSequentialRCALBPLSolver,
+)
 from discrete_optimization.rcalbp_l.solvers.pareto_postprocess import (
     DpRCALBPLPostProSolver,
     RampUpParetoSolverPostpro,
-)
-from discrete_optimization.rcalbp_l.solvers.sequential_solver import (
-    BackwardSequentialRCALBPLSolver,
 )
 
 logging.basicConfig(level=logging.INFO)

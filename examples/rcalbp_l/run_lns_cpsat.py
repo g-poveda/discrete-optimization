@@ -24,7 +24,7 @@ from discrete_optimization.generic_tools.lns_tools import (
 )
 from discrete_optimization.rcalbp_l.parser import parse_rcalbpl_json
 from discrete_optimization.rcalbp_l.solvers.cpsat import CpSatRCALBPLSolver
-from discrete_optimization.rcalbp_l.solvers.sequential_solver import (
+from discrete_optimization.rcalbp_l.solvers.meta_solvers import (
     BackwardSequentialRCALBPLSolver,
 )
 from examples.rcalbp_l.plot import plot_rcalbpl_dashboard

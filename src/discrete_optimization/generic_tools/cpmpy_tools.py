@@ -551,6 +551,7 @@ class CpmpySolver(CpSolver):
         ms_constraints = fine_method(
             soft=soft_cpmpy_wo_trivial_false, hard=hard_cpmpy, **kwargs
         )
+        print(ms_constraints)
         return soft_with_trivial_false + [cstr2meta[cstr] for cstr in ms_constraints]
 
     def get_others_meta_constraint(
@@ -656,7 +657,9 @@ class MetaCpmpyConstraint(MetaConstraint[Expression]):
     def to_normalized(self) -> MetaCpmpyConstraint:
         """Create a new meta constraints with NDVarArray constraints splitted into atomic ones."""
         return MetaCpmpyConstraint(
-            name=self.name, constraints=_get_normalized_constraints(self.constraints)
+            name=self.name,
+            constraints=_get_normalized_constraints(self.constraints),
+            metadata=self.metadata,
         )
 
 

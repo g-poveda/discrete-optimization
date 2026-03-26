@@ -2,10 +2,10 @@ import optalcp as cp
 
 from discrete_optimization.generic_tools.cp_tools import ParametersCp
 from discrete_optimization.rcalbp_l.parser import get_data_available, parse_rcalbpl_json
+from discrete_optimization.rcalbp_l.problem import plot_rcalbpl_dashboard
 from discrete_optimization.rcalbp_l.solvers.optal import (
     OptalRCALBPLSolver,
 )
-from examples.rcalbp_l.plot import plot_rcalbpl_dashboard
 
 
 def main():

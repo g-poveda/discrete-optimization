@@ -23,11 +23,11 @@ from discrete_optimization.generic_tools.lns_tools import (
     ReinitModelCallback,
 )
 from discrete_optimization.rcalbp_l.parser import get_data_available, parse_rcalbpl_json
+from discrete_optimization.rcalbp_l.problem import plot_rcalbpl_dashboard
 from discrete_optimization.rcalbp_l.solvers.cpsat import CpSatRCALBPLSolver
 from discrete_optimization.rcalbp_l.solvers.meta_solvers import (
     BackwardSequentialRCALBPLSolver,
 )
-from examples.rcalbp_l.plot import plot_rcalbpl_dashboard
 
 logging.basicConfig(level=logging.INFO)
 

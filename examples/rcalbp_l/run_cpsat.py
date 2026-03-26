@@ -7,9 +7,9 @@ from discrete_optimization.rcalbp_l.parser import get_data_available, parse_rcal
 from discrete_optimization.rcalbp_l.problem import (
     RCALBPLProblem,
     RCALBPLSolution,
+    plot_rcalbpl_dashboard,
 )
 from discrete_optimization.rcalbp_l.solvers.cpsat import CpSatRCALBPLSolver
-from examples.rcalbp_l.plot import plot_rcalbpl_dashboard
 
 logging.basicConfig(level=logging.INFO)
 

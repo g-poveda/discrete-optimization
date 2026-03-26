@@ -1,5 +1,4 @@
 import logging
-import os
 import pickle
 import time
 
@@ -7,7 +6,7 @@ from matplotlib import pyplot as plt
 
 from discrete_optimization.generic_tools.cp_tools import ParametersCp
 from discrete_optimization.generic_tools.pareto_tools import CpsatParetoSolver
-from discrete_optimization.rcalbp_l.parser import parse_rcalbpl_json
+from discrete_optimization.rcalbp_l.parser import get_data_available, parse_rcalbpl_json
 from discrete_optimization.rcalbp_l.solvers.cpsat import CpSatRCALBPLSolver
 from discrete_optimization.rcalbp_l.solvers.meta_solvers import (
     BackwardSequentialRCALBPLSolver,
@@ -21,7 +20,7 @@ logging.basicConfig(level=logging.INFO)
 
 
 def run_pareto(instance="187_2_26_2880.json"):
-    problem = parse_rcalbpl_json("instances/" + instance)
+    problem = parse_rcalbpl_json(instance)
     # problem.nb_periods = 5
     # problem.periods = range(problem.nb_periods)
     from discrete_optimization.generic_tools.sequential_metasolver import (
@@ -94,7 +93,7 @@ def run_pareto(instance="187_2_26_2880.json"):
 
 
 def main_pareto(instance="187_2_26_2880.json"):
-    problem = parse_rcalbpl_json("instances/" + instance)
+    problem = parse_rcalbpl_json(instance)
     # problem.nb_periods = 5
     # problem.periods = range(problem.nb_periods)
     from discrete_optimization.generic_tools.sequential_metasolver import (
@@ -179,7 +178,7 @@ def main_pareto(instance="187_2_26_2880.json"):
 
 
 def main_pareto_dp(instance="187_2_26_2880.json"):
-    problem = parse_rcalbpl_json("instances/" + instance)
+    problem = parse_rcalbpl_json(instance)
     # problem.nb_periods = 5
     # problem.periods = range(problem.nb_periods)
     from discrete_optimization.generic_tools.sequential_metasolver import (
@@ -254,8 +253,7 @@ def main_pareto_dp(instance="187_2_26_2880.json"):
 
 def main_script():
     # main_pareto_dp("187_2_26_2880.json")
-    instance_folder = "instances/"
-    for instance in os.listdir(instance_folder)[::-1]:
+    for instance in get_data_available():
         main_pareto_dp(instance)
         main_pareto(instance)
 

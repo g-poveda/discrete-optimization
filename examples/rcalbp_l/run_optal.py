@@ -1,7 +1,7 @@
 import optalcp as cp
 
 from discrete_optimization.generic_tools.cp_tools import ParametersCp
-from discrete_optimization.rcalbp_l.parser import parse_rcalbpl_json
+from discrete_optimization.rcalbp_l.parser import get_data_available, parse_rcalbpl_json
 from discrete_optimization.rcalbp_l.solvers.optal import (
     OptalRCALBPLSolver,
 )
@@ -9,7 +9,8 @@ from examples.rcalbp_l.plot import plot_rcalbpl_dashboard
 
 
 def main():
-    problem = parse_rcalbpl_json("instances/187_2_26_2880.json")
+    file = [f for f in get_data_available() if "187_2_26_2880.json" in f][0]
+    problem = parse_rcalbpl_json(file)
     problem.nb_periods = 5
     problem.periods = range(problem.nb_periods)
     solver = OptalRCALBPLSolver(problem)
@@ -38,8 +39,8 @@ def main():
 
 
 def main_easy():
-    problem = parse_rcalbpl_json("instances/187_2_26_2880.json")
-    print(problem.durations)
+    file = [f for f in get_data_available() if "187_2_26_2880.json" in f][0]
+    problem = parse_rcalbpl_json(file)
     problem.durations = [
         [problem.durations[t][-1]] * len(problem.durations[t])
         for t in range(problem.nb_tasks)

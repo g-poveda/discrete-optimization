@@ -22,7 +22,7 @@ from discrete_optimization.generic_tools.lns_tools import (
     InitialSolutionFromSolver,
     ReinitModelCallback,
 )
-from discrete_optimization.rcalbp_l.parser import parse_rcalbpl_json
+from discrete_optimization.rcalbp_l.parser import get_data_available, parse_rcalbpl_json
 from discrete_optimization.rcalbp_l.solvers.cpsat import CpSatRCALBPLSolver
 from discrete_optimization.rcalbp_l.solvers.meta_solvers import (
     BackwardSequentialRCALBPLSolver,
@@ -33,7 +33,8 @@ logging.basicConfig(level=logging.INFO)
 
 
 def main():
-    problem = parse_rcalbpl_json("instances/187_2_26_2880.json")
+    file = [f for f in get_data_available() if "187_2_26_2880.json" in f][0]
+    problem = parse_rcalbpl_json(file)
     # problem.nb_periods = 5
     # problem.periods = range(problem.nb_periods)
     solver = CpSatRCALBPLSolver(problem)
@@ -49,7 +50,8 @@ def main():
 
 
 def main_lns():
-    problem = parse_rcalbpl_json("instances/187_2_26_2880.json")
+    file = [f for f in get_data_available() if "187_2_26_2880.json" in f][0]
+    problem = parse_rcalbpl_json(file)
     p = ParametersCp.default_cpsat()
     p.nb_process = 8
     initial_solver = BackwardSequentialRCALBPLSolver(

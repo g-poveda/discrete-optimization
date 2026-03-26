@@ -3,7 +3,7 @@ import logging
 from matplotlib import pyplot as plt
 
 from discrete_optimization.generic_tools.cp_tools import ParametersCp
-from discrete_optimization.rcalbp_l.parser import parse_rcalbpl_json
+from discrete_optimization.rcalbp_l.parser import get_data_available, parse_rcalbpl_json
 from discrete_optimization.rcalbp_l.problem import (
     RCALBPLProblem,
     RCALBPLSolution,
@@ -15,7 +15,8 @@ logging.basicConfig(level=logging.INFO)
 
 
 def main():
-    problem = parse_rcalbpl_json("instances/187_2_26_2880.json")
+    file = [f for f in get_data_available() if "187_2_26_2880.json" in f][0]
+    problem = parse_rcalbpl_json(file)
     # problem.nb_periods = 5
     # problem.periods = range(problem.nb_periods)
     solver = CpSatRCALBPLSolver(problem)
@@ -33,9 +34,8 @@ def main():
 
 
 def main_sequential():
-    problem = parse_rcalbpl_json("instances/795_2_26_2880.json")
-    # problem.nb_periods = 5
-    # problem.periods = range(problem.nb_periods)
+    file = [f for f in get_data_available() if "795_2_26_2880.json" in f][0]
+    problem = parse_rcalbpl_json(file)
     from discrete_optimization.generic_tools.sequential_metasolver import (
         SequentialMetasolver,
         SubBrick,
@@ -112,19 +112,16 @@ def main_test_sgs():
     and rebuilds the full timeline purely via SGS logic.
     """
     # Load the problem
-    problem = parse_rcalbpl_json("instances/795_4_50_1440.json")
-
+    file = [f for f in get_data_available() if "795_4_50_1440.json" in f][0]
+    problem = parse_rcalbpl_json(file)
     # 1. Build a subproblem for ONLY the last period
     last_p = problem.nb_periods - 1
     sub_prob = _build_subproblem(problem, p_start=last_p, p_end=problem.nb_periods)
-
     # 2. Solve this last period optimally to get a good packing/order
     logging.info(f"Solving ONLY the last period ({last_p})...")
     solver = CpSatRCALBPLSolver(sub_prob)
-
     # Use minimize_used_cycle_time=True to pack it as tightly as possible
     solver.init_model(minimize_used_cycle_time=True, add_heuristic_constraint=False)
-
     p = ParametersCp.default_cpsat()
     p.nb_process = 8
     res = solver.solve(
@@ -132,11 +129,9 @@ def main_test_sgs():
         parameters_cp=p,
         ortools_cpsat_solver_kwargs=dict(log_search_progress=True),
     )
-
     if len(res) == 0:
         logging.error("Failed to find a solution for the last period!")
         return
-
     sol_last: RCALBPLSolution = res[-1][0]
     logging.info(
         f"Solution found for the last period. Max cycle time: {sol_last.cyc[last_p]}"
@@ -202,4 +197,4 @@ def main_test_sgs():
 
 
 if __name__ == "__main__":
-    main_sequential()
+    main_test_sgs()

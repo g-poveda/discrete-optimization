@@ -34,7 +34,7 @@ def main():
 
 
 def main_sequential():
-    file = [f for f in get_data_available() if "795_2_26_2880.json" in f][0]
+    file = [f for f in get_data_available() if "187_2_26_2880.json" in f][0]
     problem = parse_rcalbpl_json(file)
     from discrete_optimization.generic_tools.sequential_metasolver import (
         SequentialMetasolver,
@@ -197,4 +197,4 @@ def main_test_sgs():
 
 
 if __name__ == "__main__":
-    main_test_sgs()
+    main_sequential()

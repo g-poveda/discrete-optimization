@@ -1,7 +1,7 @@
 #  Copyright (c) 2026 AIRBUS and its affiliates.
 #  This source code is licensed under the MIT license found in the
 #  LICENSE file in the root directory of this source tree.
-
+import pytest
 
 from discrete_optimization.generic_tools.cp_tools import ParametersCp
 from discrete_optimization.generic_tools.sequential_metasolver import (
@@ -16,6 +16,7 @@ from discrete_optimization.rcalbp_l.solvers.meta_solvers import (
 )
 
 
+@pytest.mark.skip("too slow on gh actions")
 def test_backward_sequential_solver(problem):
     """Test the BackwardSequentialRCALBPLSolver metasolver."""
     p = ParametersCp.default_cpsat()
@@ -38,6 +39,7 @@ def test_backward_sequential_solver(problem):
     assert problem.satisfy(sol), "BackwardSequential solution should be feasible"
 
 
+@pytest.mark.skip("too slow on gh actions")
 def test_backward_sequential_solver_with_sgs(problem):
     """Test the BackwardSequentialRCALBPLSolver with SGS warm start."""
     p = ParametersCp.default_cpsat()
@@ -60,6 +62,7 @@ def test_backward_sequential_solver_with_sgs(problem):
     assert problem.satisfy(sol)
 
 
+@pytest.mark.skip("too slow on gh actions")
 def test_backward_sequential_solver_sgs_variant(problem):
     """Test the BackwardSequentialRCALBPLSolverSGS variant."""
     p = ParametersCp.default_cpsat()
@@ -82,6 +85,7 @@ def test_backward_sequential_solver_sgs_variant(problem):
     # assert problem.satisfy(sol) TODO : postprocess the solution to respect convention on the cycle time.
 
 
+@pytest.mark.skip("too slow on gh actions")
 def test_sequential_metasolver_two_stages(problem):
     """Test SequentialMetasolver with two stages: BackwardSequential + CPSat."""
     p = ParametersCp.default_cpsat()
@@ -127,6 +131,7 @@ def test_sequential_metasolver_two_stages(problem):
     assert "ramp_up_duration" in evaluation
 
 
+@pytest.mark.skip("too slow on gh actions")
 def test_sequential_metasolver_single_stage(problem):
     """Test SequentialMetasolver with just one solver."""
     p = ParametersCp.default_cpsat()

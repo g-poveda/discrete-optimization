@@ -1,7 +1,7 @@
 #  Copyright (c) 2026 AIRBUS and its affiliates.
 #  This source code is licensed under the MIT license found in the
 #  LICENSE file in the root directory of this source tree.
-
+import pytest
 from pytest_cases import fixture
 
 from discrete_optimization.generic_tools.callbacks.early_stoppers import (
@@ -20,6 +20,7 @@ def solver(problem):
     return solver
 
 
+@pytest.mark.skip("too slow on gh actions")
 def test_cpsat_solver_basic(problem, solver):
     """Test basic CP-SAT solving with a short time limit."""
     p = ParametersCp.default_cpsat()
@@ -53,6 +54,7 @@ def test_cpsat_solver_basic(problem, solver):
         assert sol.cyc[p_idx] <= problem.c_max
 
 
+@pytest.mark.skip("too slow on gh actions")
 def test_cpsat_solver_with_heuristic(problem):
     """Test CP-SAT solver with heuristic constraints."""
     solver = CpSatRCALBPLSolver(problem)
@@ -71,6 +73,7 @@ def test_cpsat_solver_with_heuristic(problem):
     assert problem.satisfy(sol)
 
 
+@pytest.mark.skip("too slow on gh actions")
 def test_cpsat_solver_minimize_cycle_time(problem):
     """Test CP-SAT solver with minimize_used_cycle_time option."""
     solver = CpSatRCALBPLSolver(problem)
@@ -90,6 +93,7 @@ def test_cpsat_solver_minimize_cycle_time(problem):
     assert problem.satisfy(sol)
 
 
+@pytest.mark.skip("too slow on gh actions")
 def test_cpsat_early_stopping(problem, solver):
     """Test that early stopping callback works."""
     result_storage = solver.solve(

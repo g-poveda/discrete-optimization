@@ -135,6 +135,7 @@ class OptalCpSolver(CpSolver, BoundsProviderMixin):
         }
         logger.debug(kw_params)
         if self.use_warm_start and self.warm_start_solution is not None:
+            print(self.warm_start_solution)
             result = await solver.solve(
                 model=self.cp_model,
                 params=cp.Parameters(**kw_params),

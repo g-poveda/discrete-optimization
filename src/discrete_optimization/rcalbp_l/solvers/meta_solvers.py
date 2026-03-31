@@ -3,7 +3,7 @@
 #  LICENSE file in the root directory of this source tree.
 
 import logging
-from typing import Any, Optional
+from typing import Any, Optional, Type
 
 from discrete_optimization.generic_tools.do_solver import SolverDO
 from discrete_optimization.generic_tools.result_storage.result_storage import (
@@ -18,6 +18,19 @@ logger = logging.getLogger(__name__)
 class BackwardSequentialRCALBPLSolver(SolverDO):
     """
     Independent Chunk Backward Reasoning Solver with SGS Warm-Starting.
+
+    This solver works with either CpSatRCALBPLSolver or OptalRCALBPLSolver.
+    By default, it uses CpSatRCALBPLSolver for backward compatibility.
+
+    Args:
+        problem: The RCALBP-L problem to solve
+        future_chunk_size: Size of future window to solve in Phase 1
+        phase2_chunk_size: Size of chunks to solve backward in Phase 2
+        time_limit_phase1: Time limit for Phase 1 (seconds)
+        time_limit_phase2: Time limit per chunk in Phase 2 (seconds)
+        use_sgs_warm_start: Whether to use SGS warm-start
+        solver_class: Solver class to use (CpSatRCALBPLSolver or OptalRCALBPLSolver)
+        **kwargs: Additional arguments (e.g., parameters_cp for CpSat)
     """
 
     problem: RCALBPLProblem
@@ -30,6 +43,7 @@ class BackwardSequentialRCALBPLSolver(SolverDO):
         time_limit_phase1: int = 120,
         time_limit_phase2: int = 30,
         use_sgs_warm_start: bool = True,
+        solver_class: Type[SolverDO] = CpSatRCALBPLSolver,
         **kwargs: Any,
     ):
         super().__init__(problem=problem, **kwargs)
@@ -38,6 +52,8 @@ class BackwardSequentialRCALBPLSolver(SolverDO):
         self.time_limit_phase1 = time_limit_phase1
         self.time_limit_phase2 = time_limit_phase2
         self.use_sgs_warm_start = use_sgs_warm_start
+        self.solver_class = solver_class
+        self.solver_kwargs = kwargs
 
     def _build_subproblem(self, p_start: int, p_end: int) -> RCALBPLProblem:
         return RCALBPLProblem(
@@ -62,6 +78,11 @@ class BackwardSequentialRCALBPLSolver(SolverDO):
     def _generate_sgs_warm_start(
         self, base_sol: RCALBPLSolution, target_p_start: int, target_p_end: int
     ) -> RCALBPLSolution:
+        """Generate SGS warm-start solution for a subproblem.
+
+        Uses improved logic to handle unstable periods correctly:
+        all unstable periods get the same cycle time (max over all unstable periods).
+        """
         wks, raw, start, cyc = dict(base_sol.wks), dict(base_sol.raw), {}, {}
         earliest_p_solved = min(base_sol.cyc.keys())
         target_starts = {
@@ -77,21 +98,30 @@ class BackwardSequentialRCALBPLSolver(SolverDO):
             actual_cyc = max(sgs_cyc, min_allowed_cyc)
             cyc[p] = actual_cyc
             min_allowed_cyc = actual_cyc
+
+        # Improved handling: all unstable periods get the same cycle time
         sub_prob = self._build_subproblem(p_start=target_p_start, p_end=target_p_end)
+        unstable_periods = [p for p in sub_prob.periods if p < self.problem.nb_stations]
+        if len(unstable_periods) > 0:
+            max_unstable = max([cyc[p] for p in unstable_periods])
+            for p in unstable_periods:
+                cyc[p] = max_unstable
+
         return RCALBPLSolution(sub_prob, wks, raw, start, cyc)
 
     def _run_phase_1(self, **kwargs: Any) -> Optional[RCALBPLSolution]:
-        """Original Phase 1: Solves a contiguous future chunk."""
+        """Phase 1: Solves a contiguous future chunk."""
         p_end = self.problem.nb_periods
         current_p_start = max(
             self.problem.nb_stations, self.problem.nb_periods - self.future_chunk_size
         )
 
+        solver_name = self.solver_class.__name__
         logger.info(
-            f"Backward Phase 1: Solving future window [{current_p_start}, {p_end})"
+            f"Backward Phase 1 ({solver_name}): Solving future window [{current_p_start}, {p_end})"
         )
         future_prob = self._build_subproblem(p_start=current_p_start, p_end=p_end)
-        future_solver = CpSatRCALBPLSolver(problem=future_prob)
+        future_solver = self.solver_class(problem=future_prob, **self.solver_kwargs)
         future_solver.init_model(
             minimize_used_cycle_time=True, add_heuristic_constraint=False
         )
@@ -111,30 +141,36 @@ class BackwardSequentialRCALBPLSolver(SolverDO):
         latest_chunk_sol = phase1_sol
         if current_p_end is None:
             current_p_end = min(phase1_sol.cyc.keys())
+
+        solver_name = self.solver_class.__name__
         logger.info(
-            "Backward Phase 2: Solving independent chunks backwards with locked layout."
+            f"Backward Phase 2 ({solver_name}): Solving independent chunks backwards with locked layout."
         )
 
         while current_p_end > 0:
             current_p_start = max(0, current_p_end - self.phase2_chunk_size)
-            print(current_p_start)
             if current_p_start < self.problem.nb_stations:
                 current_p_start = 0
 
             logger.info(
-                f"Phase 2: Solving independent chunk [{current_p_start}, {current_p_end})"
+                f"Phase 2 ({solver_name}): Solving independent chunk [{current_p_start}, {current_p_end})"
             )
 
             sub_prob = self._build_subproblem(
                 p_start=current_p_start, p_end=current_p_end
             )
-            sub_solver = CpSatRCALBPLSolver(problem=sub_prob)
-            sub_solver.init_model(minimize_used_cycle_time=False)
+            sub_solver = self.solver_class(problem=sub_prob, **self.solver_kwargs)
+            sub_solver.init_model(
+                minimize_used_cycle_time=False, add_heuristic_constraint=False
+            )
 
             if hasattr(sub_solver, "fix_allocations_and_resources"):
                 sub_solver.fix_allocations_and_resources(optimal_wks, optimal_raw)
 
-            if hasattr(sub_solver, "add_cycle_time_lower_bound"):
+            if (
+                hasattr(sub_solver, "add_cycle_time_lower_bound")
+                and current_p_end in merged_cyc
+            ):
                 sub_solver.add_cycle_time_lower_bound(
                     current_p_end - 1, merged_cyc[current_p_end]
                 )
@@ -178,39 +214,26 @@ class BackwardSequentialRCALBPLSolver(SolverDO):
 
 class BackwardSequentialRCALBPLSolverSGS(BackwardSequentialRCALBPLSolver):
     """
-    Independent Chunk Backward Reasoning Solver with SGS Warm-Starting.
+    Variant that uses SGS-only in Phase 2 (no CP solving).
+
+    This is faster but may produce slightly worse solutions.
+    Works with both CpSat and Optal solver classes.
     """
-
-    problem: RCALBPLProblem
-
-    def __init__(
-        self,
-        problem: RCALBPLProblem,
-        future_chunk_size: int = 5,
-        phase2_chunk_size: int = 10,
-        time_limit_phase1: int = 120,
-        time_limit_phase2: int = 30,
-        use_sgs_warm_start: bool = True,
-        **kwargs: Any,
-    ):
-        super().__init__(problem=problem, **kwargs)
-        self.future_chunk_size = future_chunk_size
-        self.phase2_chunk_size = phase2_chunk_size
-        self.time_limit_phase1 = time_limit_phase1
-        self.time_limit_phase2 = time_limit_phase2
-        self.use_sgs_warm_start = use_sgs_warm_start
 
     def _run_phase_2(
         self, phase1_sol: RCALBPLSolution, current_p_end: int = None, **kwargs: Any
     ) -> ResultStorage:
-        """Phase 2: Locks the allocation from Phase 1 and solves chunks backwards."""
+        """Phase 2: Uses SGS only (no CP solving) with locked layout from Phase 1."""
         merged_start, merged_cyc = dict(phase1_sol.start), dict(phase1_sol.cyc)
         latest_chunk_sol = phase1_sol
         if current_p_end is None:
             current_p_end = min(phase1_sol.cyc.keys())
+
+        solver_name = self.solver_class.__name__
         logger.info(
-            "Backward Phase 2: Solving independent chunks backwards with locked layout."
+            f"Backward Phase 2 ({solver_name} SGS): Using SGS only with locked layout."
         )
+
         sgs_sol = self._generate_sgs_warm_start(latest_chunk_sol, 0, current_p_end)
         sgs_sol.start.update(merged_start)
         sgs_sol.cyc.update(merged_cyc)
@@ -220,25 +243,33 @@ class BackwardSequentialRCALBPLSolverSGS(BackwardSequentialRCALBPLSolver):
 class BalancedBackwardSequentialRCALBPLSolver(BackwardSequentialRCALBPLSolver):
     """
     Upgraded Backward Solver using the 'Two-Period Extremes' heuristic.
-    Phase 1 isolates ONLY the first unstable period and the final steady-state period.
+
+    Phase 1 co-optimizes ONLY the first unstable period and the final steady-state period.
+    This balances the ramp-up and steady-state objectives effectively.
+    Works with both CpSat and Optal solver classes.
     """
 
     def _run_phase_1(self, **kwargs: Any) -> Optional[RCALBPLSolution]:
         p_first = max(0, self.problem.nb_stations - 1)
         p_last = self.problem.nb_periods - 1
+
+        solver_name = self.solver_class.__name__
         logger.info(
-            f"Balanced Phase 1: Co-optimizing extremes (Period {p_first} and Period {p_last})"
+            f"Balanced Phase 1 ({solver_name}): Co-optimizing extremes (Period {p_first} and Period {p_last})"
         )
+
         phase1_prob = self._build_subproblem(p_start=0, p_end=self.problem.nb_periods)
         phase1_prob.periods = list(range(self.problem.nb_stations)) + [p_last]
-        phase1_solver = CpSatRCALBPLSolver(problem=phase1_prob)
+        phase1_solver = self.solver_class(problem=phase1_prob, **self.solver_kwargs)
         phase1_solver.init_model(
             minimize_used_cycle_time=True, add_heuristic_constraint=False
         )
+
         res = phase1_solver.solve(time_limit=self.time_limit_phase1, **kwargs)
         if len(res) == 0:
             logger.error("Phase 1 failed. Aborting.")
             return None
+
         sol: RCALBPLSolution = res[-1][0]
         sol.cyc = self.problem.compute_actual_cycle_time_per_period(sol)
         sol.cyc = {p_last: max(self.problem.c_target, sol.cyc[p_last])}

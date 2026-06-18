@@ -26,7 +26,6 @@ from discrete_optimization.generic_tools.mzn_tools import (
     MinizincCpSolver,
     find_right_minizinc_solver_name,
 )
-from discrete_optimization.rcpsp.problem_preemptive import PreemptiveRcpspSolution
 from discrete_optimization.rcpsp.solution import PartialSolution, RcpspSolution
 from discrete_optimization.rcpsp_multiskill.problem import (
     MultiskillRcpspProblem,
@@ -35,6 +34,7 @@ from discrete_optimization.rcpsp_multiskill.problem import (
     cluster_employees_to_resource_types,
     create_fake_tasks_multiskills,
 )
+from discrete_optimization.rcpsp_preemptive.problem import PreemptiveRcpspSolution
 
 logger = logging.getLogger(__name__)
 this_path = os.path.dirname(os.path.abspath(__file__))

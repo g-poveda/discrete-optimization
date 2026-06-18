@@ -17,11 +17,11 @@ from discrete_optimization.generic_tools.hub_solver.optal.optalcp_tools import (
 from discrete_optimization.generic_tools.result_storage.result_storage import (
     ResultStorage,
 )
-from discrete_optimization.rcpsp.problem_preemptive import (
+from discrete_optimization.rcpsp.utils import create_fake_tasks
+from discrete_optimization.rcpsp_preemptive.problem import (
     PreemptiveRcpspProblem,
     PreemptiveRcpspSolution,
 )
-from discrete_optimization.rcpsp.utils import create_fake_tasks
 
 try:
     import optalcp as cp
@@ -358,52 +358,62 @@ class OptalPreemptiveRcpspSolver(OptalCpSolver):
 def compute_binary_calendar_per_tasks(
     problem: PreemptiveRcpspProblem,
 ) -> tuple[dict[tuple, np.ndarray], dict[tuple[int, int], tuple]]:
+    """Compute binary calendars for each task/mode's resource consumption pattern.
+
+    Args:
+        problem: PreemptiveRcpspProblem instance
+
+    Returns:
+        tuple of:
+        - resource_calendar_dict: cached binary calendars for each resource consumption pattern
+        - task_mode_to_calendar: maps (task, mode) to the calendar key used
+
+    """
+    # Import helper function from generic_scheduling
+    from discrete_optimization.generic_tasks_tools.generic_scheduling import (
+        compute_binary_calendar_for_resource_consumption,
+    )
+
+    # Prepare resource availabilities
     availability = {
         res: np.array(problem.get_resource_availability_array(res))
         for res in problem.resources_list
     }
-    resource_calendar_dict = {
-        problem.resources_list[i]: availability[problem.resources_list[i]] > 0
-        for i in range(len(problem.resources_list))
-    }
-    cumulative_calendar_dict = {
-        r: np.cumsum(resource_calendar_dict[r]) for r in resource_calendar_dict
-    }
-    durations = {
-        (i, m): None for i in problem.tasks_list for m in problem.mode_details[i]
-    }
+
+    resource_calendar_dict = {}
     task_mode_to_calendar = {}
+
     for i in problem.tasks_list:
         for m in problem.mode_details[i]:
-            duration = problem.mode_details[i][m]["duration"]
-            resource_non_zeros = [
-                r
-                for r in problem.resources_list
-                if problem.mode_details[i][m].get(r, 0) > 0
-            ]
-            if len(resource_non_zeros) == 0:
-                durations[i, m] = ([], {duration: [[0, problem.horizon]]})
-            elif len(resource_non_zeros) == 1:
-                # One resource pool is used.
-                res_consumption = problem.mode_details[i][m][resource_non_zeros[0]]
-                c = availability[resource_non_zeros[0]] >= res_consumption
-                resource_calendar_dict[(resource_non_zeros[0], res_consumption)] = c
-                task_mode_to_calendar[i, m] = (resource_non_zeros[0], res_consumption)
-            else:
-                tuple_res = tuple(
-                    [(r, problem.mode_details[i][m][r]) for r in resource_non_zeros]
-                )
-                if tuple_res not in resource_calendar_dict:
-                    # For the first resource in the tuple, b  "availability >= consumption"
-                    first_res_id, first_consumption = tuple_res[0]
-                    b = availability[first_res_id] >= first_consumption
-                    for res_id, cons in tuple_res[1:]:
-                        b &= availability[res_id] >= cons
-                    resource_calendar_dict[tuple_res] = b
-                    cumulative_calendar_dict[tuple_res] = np.cumsum(
-                        resource_calendar_dict[tuple_res]
+            resource_consumption = {
+                r: problem.mode_details[i][m].get(r, 0) for r in problem.resources_list
+            }
+
+            # Filter to non-zero consumption
+            resource_consumption = {
+                r: resource_consumption[r]
+                for r in resource_consumption
+                if resource_consumption[r] > 0
+            }
+
+            if len(resource_consumption) > 0:
+                # Create a hashable key for this resource consumption pattern
+                if len(resource_consumption) == 1:
+                    res_id = list(resource_consumption.keys())[0]
+                    calendar_key = (res_id, resource_consumption[res_id])
+                else:
+                    calendar_key = tuple(sorted(resource_consumption.items()))
+
+                # Compute binary calendar if not cached
+                if calendar_key not in resource_calendar_dict:
+                    binary_calendar = compute_binary_calendar_for_resource_consumption(
+                        resource_availabilities=availability,
+                        resource_consumption=resource_consumption,
                     )
-                task_mode_to_calendar[i, m] = tuple_res
+                    resource_calendar_dict[calendar_key] = binary_calendar
+
+                task_mode_to_calendar[(i, m)] = calendar_key
+
     return resource_calendar_dict, task_mode_to_calendar
 
 

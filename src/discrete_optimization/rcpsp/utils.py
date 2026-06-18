@@ -25,7 +25,7 @@ from discrete_optimization.generic_tools.plot_utils import (
     get_cmap_with_nb_colors,
 )
 
-# from discrete_optimization.rcpsp.problem_preemptive import PreemptiveRcpspSolution
+# from discrete_optimization.rcpsp_preemptive.problem import PreemptiveRcpspSolution
 
 if TYPE_CHECKING:  # avoid circular imports due to annotations
     from discrete_optimization.rcpsp.problem import RcpspProblem

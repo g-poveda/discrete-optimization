@@ -7,21 +7,21 @@ from discrete_optimization.rcpsp.parser import (
     get_data_available,
     parse_file,
 )
-from discrete_optimization.rcpsp.problem_preemptive import (
+from discrete_optimization.rcpsp.utils_preemptive import (
+    plot_ressource_view,
+    plot_task_gantt,
+)
+from discrete_optimization.rcpsp_preemptive.problem import (
     get_rcpsp_problemp_preemptive,
 )
-from discrete_optimization.rcpsp.solvers.preemptive.cpsat import (
+from discrete_optimization.rcpsp_preemptive.solvers.cpsat import (
     CpSatCalendarPreemptiveSolver,
     CpSatPreemptiveRcpspSolver,
     transform_calendar_preemptive_solution_to_preemptive,
 )
-from discrete_optimization.rcpsp.solvers.preemptive.optal import (
+from discrete_optimization.rcpsp_preemptive.solvers.optal import (
     OptalCalendarPreemptiveRcpspSolver,
     OptalPreemptiveRcpspSolver,
-)
-from discrete_optimization.rcpsp.utils_preemptive import (
-    plot_ressource_view,
-    plot_task_gantt,
 )
 
 

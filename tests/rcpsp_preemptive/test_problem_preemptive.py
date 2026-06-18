@@ -8,12 +8,12 @@ import pytest
 
 from discrete_optimization.rcpsp.parser import get_data_available, parse_file
 from discrete_optimization.rcpsp.problem import RcpspProblem
-from discrete_optimization.rcpsp.problem_preemptive import (
+from discrete_optimization.rcpsp.solution import RcpspSolution
+from discrete_optimization.rcpsp_preemptive.problem import (
     PreemptiveRcpspProblem,
     PreemptiveRcpspSolution,
     get_rcpsp_problemp_preemptive,
 )
-from discrete_optimization.rcpsp.solution import RcpspSolution
 
 files_rcpsp = get_data_available()
 single_modes_files = [f for f in files_rcpsp if "sm" in f]

@@ -8,7 +8,6 @@ import networkx as nx
 from networkx import NetworkXNoCycle
 
 from discrete_optimization.rcpsp.problem import RcpspProblem
-from discrete_optimization.rcpsp.problem_preemptive import PreemptiveRcpspProblem
 from discrete_optimization.rcpsp.problem_specialized_constraints import (
     SpecialConstraintsPreemptiveRcpspProblem,
 )
@@ -19,6 +18,7 @@ from discrete_optimization.rcpsp_multiskill.problem import (
     MultiskillRcpspProblem,
     VariantMultiskillRcpspProblem,
 )
+from discrete_optimization.rcpsp_preemptive.problem import PreemptiveRcpspProblem
 
 
 class GraphRcpsp:

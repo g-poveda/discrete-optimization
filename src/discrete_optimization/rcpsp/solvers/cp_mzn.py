@@ -26,13 +26,13 @@ from discrete_optimization.generic_tools.mzn_tools import (
     find_right_minizinc_solver_name,
 )
 from discrete_optimization.rcpsp.problem import RcpspProblem
-from discrete_optimization.rcpsp.problem_preemptive import (
-    PreemptiveRcpspProblem,
-    PreemptiveRcpspSolution,
-)
 from discrete_optimization.rcpsp.solution import PartialSolution, RcpspSolution
 from discrete_optimization.rcpsp.solvers import RcpspSolver
 from discrete_optimization.rcpsp.utils import create_fake_tasks
+from discrete_optimization.rcpsp_preemptive.problem import (
+    PreemptiveRcpspProblem,
+    PreemptiveRcpspSolution,
+)
 
 logger = logging.getLogger(__name__)
 this_path = os.path.dirname(os.path.abspath(__file__))

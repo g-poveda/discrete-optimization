@@ -27,15 +27,15 @@ from discrete_optimization.rcpsp.fast_function import (
     sgs_fast_preemptive_minduration,
     sgs_fast_preemptive_some_special_constraints,
 )
-from discrete_optimization.rcpsp.problem_preemptive import (
-    PreemptiveRcpspProblem,
-    PreemptiveRcpspSolution,
-)
 from discrete_optimization.rcpsp.solution import RcpspSolution
 from discrete_optimization.rcpsp.special_constraints import (
     SpecialConstraintsDescription,
 )
 from discrete_optimization.rcpsp.utils import intersect
+from discrete_optimization.rcpsp_preemptive.problem import (
+    PreemptiveRcpspProblem,
+    PreemptiveRcpspSolution,
+)
 
 logger = logging.getLogger(__name__)
 

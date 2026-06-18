@@ -16,7 +16,6 @@ import logging
 import numpy as np
 
 from discrete_optimization.flex_scheduling.fsp_utils import (
-    compute_duration_function_time_cluster,
     get_lb_ub_start_end_date,
     get_lb_ub_start_end_date_group_of_task,
 )
@@ -30,7 +29,6 @@ from discrete_optimization.flex_scheduling.problem import (
     ObjectivesEnum,
     ResourceData,
     ScheduleSolution,
-    TaskData,
 )
 from discrete_optimization.flex_scheduling.solvers.cpsat import (
     build_multiple_cumulative_constraints_inputs,
@@ -65,81 +63,37 @@ class ConstraintIncludingParams:
 def compute_duration_tasks_function_time_and_resource_calendars(
     problem: FlexProblem,
 ) -> tuple[Any, dict[tuple, np.ndarray], dict[tuple[int, int], tuple]]:
-    method = compute_duration_function_time_cluster
-    resource_calendar_dict = {
-        problem.resources[i].id: problem.resources[i].calendar_availability > 0
-        for i in range(len(problem.resources))
-    }
-    cumulative_calendar_dict = {
-        r: np.cumsum(resource_calendar_dict[r]) for r in resource_calendar_dict
-    }
-    durations = {
-        (i, m): None for i in range(problem.nb_tasks) for m in problem.tasks[i].modes
-    }
-    task_mode_to_calendar = {}
-    for i in range(problem.nb_tasks):
-        for m in problem.tasks[i].modes:
-            task_data: TaskData = problem.tasks[i].modes[m]
-            resource_non_zeros = [
-                r
-                for r in task_data.resource_consumption
-                if task_data.resource_consumption[r] > 0
-            ]
-            if len(resource_non_zeros) == 0:
-                durations[i, m] = ([], {task_data.duration: [[0, problem.horizon]]})
-            elif len(resource_non_zeros) == 1:
-                # One resource pool is used.
-                orig_duration = task_data.duration
-                res_consumption = task_data.resource_consumption[resource_non_zeros[0]]
-                c = (
-                    problem.resources[
-                        problem.resource_id_to_index[resource_non_zeros[0]]
-                    ].calendar_availability
-                    >= res_consumption
-                )
-                durations[i, m] = method(
-                    orig_duration=orig_duration,
-                    resource_calendar=c,  # resource_calendar_dict[resource_non_zeros[0]],
-                    cumulative_resource_calendar=np.cumsum(c),
-                    # cumulative_calendar_dict[
-                    #     resource_non_zeros[0]
-                    # ],
-                )
-                resource_calendar_dict[(resource_non_zeros[0], res_consumption)] = c
-                task_mode_to_calendar[i, m] = (resource_non_zeros[0], res_consumption)
-            else:
-                orig_duration = task_data.duration
-                tuple_res = tuple(
-                    [(r, task_data.resource_consumption[r]) for r in resource_non_zeros]
-                )
-                if tuple_res not in resource_calendar_dict:
-                    # For the first resource in the tuple, b  "availability >= consumption"
-                    first_res_id, first_consumption = tuple_res[0]
-                    b = (
-                        problem.resources[
-                            problem.resource_id_to_index[first_res_id]
-                        ].calendar_availability
-                        >= first_consumption
-                    )
+    """Compute preemptive durations and resource calendars for all tasks/modes.
 
-                    for res_id, cons in tuple_res[1:]:
-                        b &= (
-                            problem.resources[
-                                problem.resource_id_to_index[res_id]
-                            ].calendar_availability
-                            >= cons
-                        )
-                    resource_calendar_dict[tuple_res] = b
-                    cumulative_calendar_dict[tuple_res] = np.cumsum(
-                        resource_calendar_dict[tuple_res]
-                    )
-                durations[i, m] = method(
-                    orig_duration=orig_duration,
-                    resource_calendar=resource_calendar_dict[tuple_res],
-                    cumulative_resource_calendar=cumulative_calendar_dict[tuple_res],
+    Args:
+        problem: FlexProblem instance
+
+    Returns:
+        tuple of:
+        - durations: dict[(task_index, mode)] -> (duration_array, interval_dict)
+        - resource_calendar_dict: cached binary calendars for resource consumption patterns
+        - task_mode_to_calendar: maps (task_index, mode) to the calendar key used
+
+    """
+    # Use the generic method from GenericSchedulingProblem
+    durations, resource_calendar_dict, task_mode_to_calendar = (
+        problem.compute_task_durations_with_calendar_preemption(horizon=problem.horizon)
+    )
+
+    # Convert task IDs to indices for FlexProblem solver compatibility
+    durations_by_index = {}
+    task_mode_to_calendar_by_index = {}
+    for task_id in problem.tasks_ids:
+        task_index = problem.task_id_to_index[task_id]
+        for mode in problem.get_task_modes(task_id):
+            if (task_id, mode) in durations:
+                durations_by_index[(task_index, mode)] = durations[(task_id, mode)]
+            if (task_id, mode) in task_mode_to_calendar:
+                task_mode_to_calendar_by_index[(task_index, mode)] = (
+                    task_mode_to_calendar[(task_id, mode)]
                 )
-                task_mode_to_calendar[i, m] = tuple_res
-    return durations, resource_calendar_dict, task_mode_to_calendar
+
+    return durations_by_index, resource_calendar_dict, task_mode_to_calendar_by_index
 
 
 class OptalFlexProblemSolver(OptalCpSolver):

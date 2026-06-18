@@ -10,7 +10,6 @@ from discrete_optimization.rcpsp import (
     RcpspProblem,
     SpecialConstraintsPreemptiveRcpspProblem,
 )
-from discrete_optimization.rcpsp.problem_preemptive import PreemptiveRcpspSolution
 from discrete_optimization.rcpsp.solution import RcpspSolution
 from discrete_optimization.rcpsp_multiskill.problem import (
     MultiskillRcpspProblem,
@@ -20,6 +19,7 @@ from discrete_optimization.rcpsp_multiskill.problem import (
     VariantMultiskillRcpspSolution,
     VariantPreemptiveMultiskillRcpspSolution,
 )
+from discrete_optimization.rcpsp_preemptive.problem import PreemptiveRcpspSolution
 
 ANY_CLASSICAL_RCPSP = Union[
     RcpspProblem,

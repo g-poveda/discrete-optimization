@@ -30,7 +30,6 @@ from discrete_optimization.generic_tools.result_storage.result_storage import (
     ResultStorage,
 )
 from discrete_optimization.rcpsp.problem import RcpspProblem
-from discrete_optimization.rcpsp.problem_preemptive import PreemptiveRcpspProblem
 from discrete_optimization.rcpsp.problem_specialized_constraints import (
     SpecialConstraintsPreemptiveRcpspProblem,
 )
@@ -52,6 +51,7 @@ from discrete_optimization.rcpsp.solvers.pile import (
     PileCalendarRcpspSolver,
     PileRcpspSolver,
 )
+from discrete_optimization.rcpsp_preemptive.problem import PreemptiveRcpspProblem
 
 solvers: dict[
     str, list[tuple[Union[type[RcpspSolver], type[GenericRcpspSolver]], dict[str, Any]]]

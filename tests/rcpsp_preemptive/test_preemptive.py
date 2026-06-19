@@ -24,14 +24,14 @@ from discrete_optimization.rcpsp.solvers.cp_mzn import (
     CpMultimodePreemptiveRcpspSolver,
     CpPreemptiveRcpspSolver,
 )
-from discrete_optimization.rcpsp.utils_preemptive import (
-    plot_resource_individual_gantt,
-    plot_ressource_view,
-    plot_task_gantt,
-)
 from discrete_optimization.rcpsp_preemptive.problem import (
     PreemptiveRcpspProblem,
     get_rcpsp_problemp_preemptive,
+)
+from discrete_optimization.rcpsp_preemptive.utils import (
+    plot_resource_individual_gantt,
+    plot_ressource_view,
+    plot_task_gantt,
 )
 
 

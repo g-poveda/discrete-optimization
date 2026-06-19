@@ -5,6 +5,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 from collections.abc import Hashable
+from dataclasses import dataclass
 from typing import Generic, Optional, Union
 
 import numpy as np
@@ -56,6 +57,124 @@ CalendarKey = Union[
         tuple[Hashable, int], ...
     ],  # Multiple resources: ((res1, cons1), (res2, cons2), ...)
 ]
+
+
+@dataclass
+class CalendarPreemptionData:
+    """Data structure containing calendar-aware preemption information for scheduling problems.
+
+    This class encapsulates the precomputed information needed to handle task preemption
+    when resources have varying availability over time (e.g., workers unavailable on weekends).
+
+    For each (task, mode) combination, it provides:
+    - How the actual task duration varies based on start time
+    - Which time intervals are valid for each possible duration
+    - Binary calendars indicating when resources are available
+
+    Attributes:
+        durations: Maps (task, mode) to preemption duration information.
+            For each (task, mode):
+            - duration_array[t]: actual time units needed if task starts at time t
+            - interval_dict[d]: list of [start, end) intervals where starting the task
+                               results in duration d
+        resource_calendar_dict: Maps resource consumption patterns to binary availability calendars.
+            Each binary calendar is a numpy array where 1 = resources available, 0 = unavailable.
+            The key is a CalendarKey identifying a unique resource consumption pattern.
+        task_mode_to_calendar: Maps each (task, mode) to its resource consumption pattern key.
+            Used to look up the corresponding binary calendar in resource_calendar_dict.
+
+    Example:
+       # >>> data = problem.compute_task_durations_with_calendar_preemption()
+       # >>> # Get duration info for task 5, mode 1
+       # >>> duration_array, interval_dict = data.durations[(task_5, 1)]
+       # >>> # If starting at time 10, task will take duration_array[10] time units
+       # >>> # Get the binary calendar for this task/mode
+       # >>> calendar_key = data.task_mode_to_calendar[(task_5, 1)]
+       # >>> binary_calendar = data.resource_calendar_dict[calendar_key]
+       # >>> # binary_calendar[t] == 1 means resources available at time t
+
+    """
+
+    durations: dict[tuple[Task, int], tuple[np.ndarray, dict[int, list[list[int]]]]]
+    resource_calendar_dict: dict[CalendarKey, np.ndarray]
+    task_mode_to_calendar: dict[tuple[Task, int], CalendarKey]
+
+    def get_duration_for_start_time(
+        self, task: Task, mode: int, start_time: int
+    ) -> int:
+        """Get the actual duration if the task starts at the given time.
+
+        Args:
+            task: The task
+            mode: The mode
+            start_time: The proposed start time
+
+        Returns:
+            Actual duration in time units (may be larger than nominal duration due to preemption)
+
+        """
+        duration_array, _ = self.durations[(task, mode)]
+        return int(duration_array[start_time])
+
+    def get_binary_calendar(self, task: Task, mode: int) -> np.ndarray:
+        """Get the binary availability calendar for a task/mode.
+
+        Args:
+            task: The task
+            mode: The mode
+
+        Returns:
+            Binary numpy array where 1 = resources available, 0 = unavailable
+
+        """
+        calendar_key = self.task_mode_to_calendar[(task, mode)]
+        return self.resource_calendar_dict[calendar_key]
+
+    def to_index_based(
+        self, problem: "GenericSchedulingProblem"
+    ) -> tuple[
+        dict[tuple[int, int], tuple[np.ndarray, dict[int, list[list[int]]]]],
+        dict[tuple[int, int], np.ndarray],
+        dict[tuple[int, int], CalendarKey],
+    ]:
+        """Convert task-based keys to index-based keys for solver compatibility.
+
+        Some solvers (e.g., FlexProblem solvers) expect integer task indices rather
+        than task objects. This method remaps all data to use indices.
+
+        Args:
+            problem: The scheduling problem providing the task-to-index mapping
+
+        Returns:
+            tuple of:
+            - durations_by_index: dict[(task_index, mode)] -> (duration_array, interval_dict)
+            - res_arrays: dict[(task_index, mode)] -> binary calendar array
+            - task_mode_to_calendar_by_index: dict[(task_index, mode)] -> CalendarKey
+
+        Example:
+            >>> data = problem.compute_task_durations_with_calendar_preemption()
+            >>> durations, res_arrays, task_mode_mapping = data.to_index_based(problem)
+
+        """
+        durations_by_index = {}
+        res_arrays = {}
+        task_mode_to_calendar_by_index = {}
+
+        for task in problem.tasks_list:
+            task_index = problem.get_index_from_task(task)
+            for mode in problem.get_task_modes(task):
+                if (task, mode) in self.durations:
+                    durations_by_index[(task_index, mode)] = self.durations[
+                        (task, mode)
+                    ]
+                if (task, mode) in self.task_mode_to_calendar:
+                    calendar_key = self.task_mode_to_calendar[(task, mode)]
+                    res_arrays[(task_index, mode)] = self.resource_calendar_dict[
+                        calendar_key
+                    ]
+                    task_mode_to_calendar_by_index[(task_index, mode)] = calendar_key
+
+        return durations_by_index, res_arrays, task_mode_to_calendar_by_index
 
 
 # Calendar-aware preemption utilities
@@ -573,7 +692,7 @@ class GenericSchedulingProblem(
         It takes into account time lags constraints.
         - end to start min constraint with non-negative offsets => precedence constraint
         - start synchronization => corresponding tasks should appear together in successors
-        - end synchornization => corresponding tasks should share their successors
+        - end synchronization => corresponding tasks should share their successors
 
         """
         successors = defaultdict(set)
@@ -686,11 +805,7 @@ class GenericSchedulingProblem(
     @wrapt.lru_cache(maxsize=None)
     def compute_task_durations_with_calendar_preemption(
         self, horizon: Optional[int] = None
-    ) -> tuple[
-        dict[tuple[Task, int], tuple[np.ndarray, dict[int, list[list[int]]]]],
-        dict[CalendarKey, np.ndarray],
-        dict[tuple[Task, int], CalendarKey],
-    ]:
+    ) -> CalendarPreemptionData:
         """Compute preemptive durations for all tasks/modes considering resource calendars.
 
         For each (task, mode) combination, computes how the actual duration varies based on
@@ -703,18 +818,15 @@ class GenericSchedulingProblem(
             horizon: problem horizon (max time), defaults to get_makespan_upper_bound()
 
         Returns:
-            tuple of (durations, resource_calendar_dict, task_mode_to_calendar):
-            - durations: dict[(task, mode)] -> (duration_array, interval_dict)
-                * duration_array: np.ndarray indexed by start time, duration_array[t] = time units needed if starting at t
-                * interval_dict: dict[duration] -> list of [start, end] intervals where that duration applies
-            - resource_calendar_dict: dict[CalendarKey] -> np.ndarray
-                * Maps resource consumption patterns to binary calendars (1=available, 0=unavailable)
-            - task_mode_to_calendar: dict[(task, mode)] -> CalendarKey
-                * Maps each (task, mode) to its resource consumption pattern key
+            CalendarPreemptionData containing:
+            - durations: mapping from (task, mode) to (duration_array, interval_dict)
+            - resource_calendar_dict: binary calendars for each resource consumption pattern
+            - task_mode_to_calendar: mapping from (task, mode) to calendar key
 
         Example:
-            #>>> durations, calendars, mapping = problem.compute_task_durations_with_calendar_preemption()
-            #>>> duration_array, interval_dict = durations[(task_1, 1)]
+            >>> data = problem.compute_task_durations_with_calendar_preemption()
+            >>> duration_array, interval_dict = data.durations[(task_1, 1)]
+            >>> actual_duration = data.get_duration_for_start_time(task_1, 1, start_time=10)
 
         """
         if horizon is None:
@@ -785,7 +897,11 @@ class GenericSchedulingProblem(
                     )
                     task_mode_to_calendar[(task, mode)] = calendar_key
 
-        return durations, resource_calendar_dict, task_mode_to_calendar
+        return CalendarPreemptionData(
+            durations=durations,
+            resource_calendar_dict=resource_calendar_dict,
+            task_mode_to_calendar=task_mode_to_calendar,
+        )
 
     def compute_penalty(
         self, variable: GenericSchedulingSolution, penalty: Penalty

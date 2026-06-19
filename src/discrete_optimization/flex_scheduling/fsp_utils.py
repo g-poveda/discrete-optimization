@@ -294,26 +294,12 @@ def compute_duration_tasks_function_time(problem: FlexProblem):
         - res_arrays: dict[(task_index, mode)] -> binary calendar array
 
     """
-    # Use the generic method from GenericSchedulingProblem
-    durations, resource_calendar_dict, task_mode_to_calendar = (
-        problem.compute_task_durations_with_calendar_preemption(horizon=problem.horizon)
+    # Use the generic method from GenericSchedulingProblem and convert to index-based
+    data = problem.compute_task_durations_with_calendar_preemption(
+        horizon=problem.horizon
     )
-
-    # Convert task IDs to indices for FlexProblem solver compatibility
-    # The generic method uses task IDs from tasks_list, but FlexProblem solver expects integer indices
-    durations_by_index = {}
-    res_arrays = {}
-    for task_id in problem.tasks_ids:
-        task_index = problem.task_id_to_index[task_id]
-        for mode in problem.get_task_modes(task_id):
-            if (task_id, mode) in durations:
-                durations_by_index[(task_index, mode)] = durations[(task_id, mode)]
-            if (task_id, mode) in task_mode_to_calendar:
-                res_arrays[(task_index, mode)] = resource_calendar_dict[
-                    task_mode_to_calendar[(task_id, mode)]
-                ]
-
-    return durations_by_index, res_arrays
+    durations, res_arrays, _ = data.to_index_based(problem)
+    return durations, res_arrays
 
 
 def resource_consumption_modes(flex_problem: FlexProblem):

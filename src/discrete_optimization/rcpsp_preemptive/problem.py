@@ -21,12 +21,22 @@ from discrete_optimization.generic_rcpsp_tools.attribute_type import (
     ListIntegerRcpsp,
     PermutationRcpsp,
 )
+from discrete_optimization.generic_tasks_tools.allocation import (
+    NoUnaryResource,
+    WithoutAllocationProblem,
+)
+from discrete_optimization.generic_tasks_tools.calendar_resource import (
+    convert_calendar_to_availability_intervals,
+)
+from discrete_optimization.generic_tasks_tools.generic_scheduling import (
+    GenericSchedulingProblem,
+)
+from discrete_optimization.generic_tasks_tools.skill import NoSkill, WithoutSkillProblem
 from discrete_optimization.generic_tools.do_problem import (
     ModeOptim,
     ObjectiveDoc,
     ObjectiveHandling,
     ObjectiveRegister,
-    Problem,
     Solution,
     TupleFitness,
     TypeObjective,
@@ -39,6 +49,15 @@ from discrete_optimization.rcpsp.fast_function import (
     sgs_fast_partial_schedule_preemptive_minduration,
     sgs_fast_preemptive,
     sgs_fast_preemptive_minduration,
+)
+from discrete_optimization.rcpsp.solution import (
+    NonRenewableResource,
+    NonSkillCumulativeResource,
+    Resource,
+    Task,
+)
+from discrete_optimization.rcpsp.special_constraints import (
+    SpecialConstraintsDescription,
 )
 
 logger = logging.getLogger(__name__)
@@ -153,13 +172,6 @@ class PreemptiveRcpspSolution(Solution):
         ):
             l += list(range(s, e))
         return l
-
-    def change_problem(self, new_problem: Problem):
-        self.__init__(
-            problem=new_problem,
-            rcpsp_permutation=self.rcpsp_permutation,
-            rcpsp_modes=self.rcpsp_modes,
-        )
 
     def __setattr__(self, key, value):
         super.__setattr__(self, key, value)
@@ -411,8 +423,25 @@ class PartialPreemptiveRcpspSolution:
         # indicating that l1 should be started before l1, and  l2 before l3 for example
 
 
-class PreemptiveRcpspProblem(Problem):
+class PreemptiveRcpspProblem(
+    GenericSchedulingProblem[
+        Task, NoUnaryResource, NoSkill, NonSkillCumulativeResource, NonRenewableResource
+    ],
+    WithoutSkillProblem[
+        Task, NoUnaryResource, NonSkillCumulativeResource, NoUnaryResource
+    ],
+    WithoutAllocationProblem[Task],
+):
+    """Preemptive RCPSP problem with calendar-aware resource availability.
+
+    Extends RCPSP to allow task preemption when resources have varying availability
+    over time (e.g., workers unavailable on weekends).
+
+    """
+
     sgs: ScheduleGenerationScheme
+    source_task: Task
+    sink_task: Task
     resources: Union[
         dict[str, int], dict[str, list[int]]
     ]  # {resource_name: number_of_resource}
@@ -436,6 +465,7 @@ class PreemptiveRcpspProblem(Problem):
         preemptive_indicator: dict[Hashable, bool] = None,
         duration_subtask: dict[Hashable, tuple[bool, int]] = None,
         name_task: dict[int, str] = None,
+        special_constraints: Optional[SpecialConstraintsDescription] = None,
     ):
         self.resources = resources
         self.resources_list = list(self.resources.keys())
@@ -446,9 +476,10 @@ class PreemptiveRcpspProblem(Problem):
         self.name_task = name_task
         if name_task is None:
             self.name_task = {x: str(x) for x in self.mode_details}
-        self.tasks_list = tasks_list
         if tasks_list is None:
-            self.tasks_list = list(self.mode_details.keys())
+            self._tasks_list = list(self.mode_details.keys())
+        else:
+            self._tasks_list = tasks_list
         self.preemptive_indicator = preemptive_indicator
         if preemptive_indicator is None:
             self.preemptive_indicator = {t: True for t in self.tasks_list}
@@ -473,10 +504,40 @@ class PreemptiveRcpspProblem(Problem):
         self.index_task_non_dummy = {
             self.tasks_list_non_dummy[i]: i for i in range(self.n_jobs_non_dummy)
         }
-        self.max_number_of_mode = max(
-            [len(self.mode_details[key1].keys()) for key1 in self.mode_details.keys()]
+
+        # Initialize special constraints
+        if special_constraints is None:
+            self.special_constraints = SpecialConstraintsDescription(
+                skip_special_constraints=True
+            )
+        else:
+            self.special_constraints = special_constraints
+        self.do_special_constraints = (
+            not self.special_constraints.skip_special_constraints
         )
-        self.is_multimode = self.max_number_of_mode > 1
+
+        # Add special constraints to successors if needed
+        if self.do_special_constraints:
+            self.predecessors_dict = {task: [] for task in self.tasks_list}
+            for task in self.successors:
+                for stask in self.successors[task]:
+                    self.predecessors_dict[stask] += [task]
+
+            for t1, t2 in self.special_constraints.start_at_end:
+                if t2 not in self.successors[t1]:
+                    self.successors[t1].append(t2)
+            for t1, t2, off in self.special_constraints.start_after_end_plus_offset:
+                if t2 not in self.successors[t1]:
+                    self.successors[t1].append(t2)
+            for t1, t2 in self.special_constraints.start_together:
+                for predt1 in self.predecessors_dict[t1]:
+                    if t2 not in self.successors[predt1]:
+                        self.successors[predt1] += [t2]
+                for predt2 in self.predecessors_dict[t2]:
+                    if t1 not in self.successors[predt2]:
+                        self.successors[predt2] += [t1]
+
+        # max_number_of_mode and is_multimode are now properties from MultimodeProblem
         self.is_calendar = False
         if any(isinstance(self.resources[res], Iterable) for res in self.resources):
             self.is_calendar = (
@@ -494,11 +555,102 @@ class PreemptiveRcpspProblem(Problem):
             )
             if not self.is_calendar:
                 self.resources = {r: int(self.resources[r][0]) for r in self.resources}
+
+        # Compute graph (needed for predecessors_dict)
+        self.graph = self.compute_graph()
+        self.predecessors = self.graph.predecessors_dict
+
+        # Create JIT functions
         (
             self.func_sgs,
             self.func_sgs_2,
             self.compute_mean_resource,
         ) = create_np_data_and_jit_functions(self)
+
+    # GenericSchedulingProblem interface
+
+    @property
+    def tasks_list(self) -> list[Task]:
+        return self._tasks_list
+
+    @property
+    def non_renewable_resources_list(self) -> list[NonRenewableResource]:
+        return self.non_renewable_resources
+
+    @property
+    def non_skill_cumulative_resources_list(self) -> list[NonSkillCumulativeResource]:
+        return [r for r in self.resources_list if r not in self.non_renewable_resources]
+
+    def get_task_modes(self, task: Task) -> set[int]:
+        return set(self.mode_details[task].keys())
+
+    def get_task_mode_duration(self, task: Task, mode: int) -> int:
+        return self.mode_details[task][mode]["duration"]
+
+    def get_cumulative_resource_consumption(
+        self, resource: NonSkillCumulativeResource, task: Task, mode: int
+    ) -> int:
+        return self.mode_details[task][mode].get(resource, 0)
+
+    def get_non_renewable_resource_consumption(
+        self, resource: NonRenewableResource, task: Task, mode: int
+    ) -> int:
+        return self.mode_details[task][mode].get(resource, 0)
+
+    def get_non_renewable_resource_capacity(
+        self, resource: NonRenewableResource
+    ) -> int:
+        if isinstance(self.resources[resource], int):
+            return self.resources[resource]
+        else:
+            # For calendar resources, capacity should be constant for non-renewable
+            return self.resources[resource][0]
+
+    def get_resource_availabilities(
+        self, resource: Resource
+    ) -> list[tuple[int, int, int]]:
+        if isinstance(self.resources[resource], int):
+            # Constant availability
+            return [(0, self.horizon, self.resources[resource])]
+        else:
+            # Calendar-based availability
+            return convert_calendar_to_availability_intervals(
+                calendar=self.resources[resource], horizon=self.horizon
+            )
+
+    def get_precedence_constraints(self) -> dict[Task, Iterable[Task]]:
+        return self.successors
+
+    def get_makespan_upper_bound(self) -> int:
+        return self.horizon
+
+    def get_task_start_or_end_lower_bound(
+        self, task: Task, start_or_end: "StartOrEnd"
+    ) -> int:
+        # No specific time windows, so default to 0
+        return 0
+
+    def get_task_start_or_end_upper_bound(
+        self, task: Task, start_or_end: "StartOrEnd"
+    ) -> int:
+        # No specific time windows, so default to horizon
+        return self.horizon
+
+    def get_last_tasks(self) -> list[Task]:
+        return [self.sink_task]
+
+    def get_start_to_start_min_time_lags(self) -> list[tuple[Task, Task, int]]:
+        return []
+
+    def get_start_to_start_max_time_lags(self) -> list[tuple[Task, Task, int]]:
+        return []
+
+    def get_end_to_start_min_time_lags(self) -> list[tuple[Task, Task, int]]:
+        # Default from precedence constraints (0 lag)
+        return []
+
+    def get_end_to_start_max_time_lags(self) -> list[tuple[Task, Task, int]]:
+        return []
 
     def get_resource_names(self):
         return self.resources_list
@@ -563,14 +715,31 @@ class PreemptiveRcpspProblem(Problem):
         if rcpsp_sol._schedule_to_recompute:
             rcpsp_sol.generate_schedule_from_permutation_serial_sgs()
         makespan = rcpsp_sol.rcpsp_schedule[self.sink_task]["ends"][-1]
-        return makespan, 0.0
+
+        # Compute special constraints penalty if applicable
+        penalty = 0.0
+        if self.do_special_constraints and rcpsp_sol.rcpsp_schedule_feasible:
+            from discrete_optimization.rcpsp_preemptive.problem_specialized_constraints import (
+                evaluate_constraints,
+            )
+
+            penalty = evaluate_constraints(
+                solution=rcpsp_sol, constraints=self.special_constraints
+            )
+
+        return makespan, 0.0, penalty
 
     def evaluate(self, variable: PreemptiveRcpspSolution) -> dict[str, float]:
-        obj_makespan, obj_mean_resource_reserve = self.evaluate_function(variable)
-        return {
+        obj_makespan, obj_mean_resource_reserve, penalty = self.evaluate_function(
+            variable
+        )
+        result = {
             "makespan": obj_makespan,
             "mean_resource_reserve": obj_mean_resource_reserve,
         }
+        if self.do_special_constraints:
+            result["constraint_penalty"] = penalty
+        return result
 
     def evaluate_mobj(self, variable: PreemptiveRcpspSolution):
         return self.evaluate_mobj_from_dict(self.evaluate(variable))
@@ -602,7 +771,24 @@ class PreemptiveRcpspProblem(Problem):
     def return_index_task(self, task, offset=0):
         return self.index_task[task] + offset
 
+    def is_preemptive(self) -> bool:
+        """Return True since this is a preemptive RCPSP problem."""
+        return True
+
+    def has_special_constraints(self) -> bool:
+        """Return True if the problem has special constraints to enforce."""
+        return self.do_special_constraints
+
     def satisfy(self, variable: PreemptiveRcpspSolution) -> bool:
+        # Check special constraints first if applicable
+        if self.do_special_constraints:
+            from discrete_optimization.rcpsp_preemptive.problem_specialized_constraints import (
+                check_solution,
+            )
+
+            if not check_solution(problem=self, solution=variable):
+                return False
+
         if variable.rcpsp_schedule_feasible is False:
             logger.debug("Schedule flagged as infeasible when generated")
             return False
@@ -685,9 +871,16 @@ class PreemptiveRcpspProblem(Problem):
                 type=TypeObjective.OBJECTIVE, default_weight=1.0
             ),
         }
+        if self.do_special_constraints:
+            dict_objective["constraint_penalty"] = ObjectiveDoc(
+                type=TypeObjective.PENALTY, default_weight=-100.0
+            )
+
         return ObjectiveRegister(
             objective_sense=ModeOptim.MAXIMIZATION,
-            objective_handling=ObjectiveHandling.SINGLE,
+            objective_handling=ObjectiveHandling.AGGREGATE
+            if self.do_special_constraints
+            else ObjectiveHandling.SINGLE,
             dict_objective_to_doc=dict_objective,
         )
 
@@ -720,11 +913,18 @@ class PreemptiveRcpspProblem(Problem):
 
     def copy(self):
         return PreemptiveRcpspProblem(
-            resources=self.resources,
-            non_renewable_resources=self.non_renewable_resources,
+            resources=deepcopy(self.resources),
+            non_renewable_resources=deepcopy(self.non_renewable_resources),
             mode_details=deepcopy(self.mode_details),
             successors=deepcopy(self.successors),
             horizon=self.horizon,
+            tasks_list=deepcopy(self.tasks_list),
+            source_task=self.source_task,
+            sink_task=self.sink_task,
+            preemptive_indicator=deepcopy(self.preemptive_indicator),
+            duration_subtask=deepcopy(self.duration_subtask),
+            name_task=deepcopy(self.name_task),
+            special_constraints=deepcopy(self.special_constraints),
         )
 
     def copy_with_multiplier(self, multiplier=0.5):

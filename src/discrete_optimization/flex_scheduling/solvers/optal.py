@@ -75,25 +75,16 @@ def compute_duration_tasks_function_time_and_resource_calendars(
         - task_mode_to_calendar: maps (task_index, mode) to the calendar key used
 
     """
-    # Use the generic method from GenericSchedulingProblem
-    durations, resource_calendar_dict, task_mode_to_calendar = (
-        problem.compute_task_durations_with_calendar_preemption(horizon=problem.horizon)
+    # Use the generic method from GenericSchedulingProblem and convert to index-based
+    data = problem.compute_task_durations_with_calendar_preemption(
+        horizon=problem.horizon
     )
-
-    # Convert task IDs to indices for FlexProblem solver compatibility
-    durations_by_index = {}
-    task_mode_to_calendar_by_index = {}
-    for task_id in problem.tasks_ids:
-        task_index = problem.task_id_to_index[task_id]
-        for mode in problem.get_task_modes(task_id):
-            if (task_id, mode) in durations:
-                durations_by_index[(task_index, mode)] = durations[(task_id, mode)]
-            if (task_id, mode) in task_mode_to_calendar:
-                task_mode_to_calendar_by_index[(task_index, mode)] = (
-                    task_mode_to_calendar[(task_id, mode)]
-                )
-
-    return durations_by_index, resource_calendar_dict, task_mode_to_calendar_by_index
+    durations_by_index, _, task_mode_to_calendar_by_index = data.to_index_based(problem)
+    return (
+        durations_by_index,
+        data.resource_calendar_dict,
+        task_mode_to_calendar_by_index,
+    )
 
 
 class OptalFlexProblemSolver(OptalCpSolver):

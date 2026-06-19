@@ -344,10 +344,20 @@ class CpSatPreemptiveRcpspSolver(OrtoolsCpSatSolver):
                     )
                 else:
                     break
-            schedule[t] = {
-                "starts": [x[0] for x in sched],
-                "ends": [x[1] for x in sched],
-            }
+
+            # For duration-0 tasks, record the time point even though no parts are present
+            if len(sched) == 0:
+                time_point = cpsolvercb.value(self.variables["starts"][t][0])
+                schedule[t] = {
+                    "starts": [time_point],
+                    "ends": [time_point],
+                }
+            else:
+                schedule[t] = {
+                    "starts": [x[0] for x in sched],
+                    "ends": [x[1] for x in sched],
+                }
+
             modes = list(self.variables["modes"][t].keys())
             if len(modes) == 1:
                 modes_dict[t] = modes[0]
@@ -355,6 +365,336 @@ class CpSatPreemptiveRcpspSolver(OrtoolsCpSatSolver):
                 for m in self.variables["modes"][t]:
                     if cpsolvercb.value(self.variables["modes"][t][m]):
                         modes_dict[t] = m
+        modes = [
+            modes_dict[t]
+            for t in self.problem.tasks_list
+            if t not in {self.problem.source_task, self.problem.sink_task}
+        ]
+        return PreemptiveRcpspSolution(
+            problem=self.problem, rcpsp_schedule=schedule, rcpsp_modes=modes
+        )
+
+
+class CpSatPreemptiveRcpspSolverUnitTime(OrtoolsCpSatSolver):
+    problem: PreemptiveRcpspProblem
+
+    def __init__(
+        self,
+        problem: PreemptiveRcpspProblem,
+        params_objective_function: ParamsObjectiveFunction | None = None,
+        **kwargs,
+    ):
+        super().__init__(problem, params_objective_function, **kwargs)
+        self.variables = {}
+
+    def init_model(self, **kwargs: Any) -> None:
+        super().init_model(**kwargs)
+        self.create_modes_variables()
+        self.create_preempt_variables()
+        self.constraint_convention_variables()
+        self.create_resource_consumption_variables()
+        self.constraint_precedence()
+        self.constraint_resource()
+        self.variables["objectives"] = {
+            "makespan": self.variables["ends"][self.problem.sink_task][0]
+        }
+        self.cp_model.minimize(self.variables["ends"][self.problem.sink_task][0])
+
+    def implements_lexico_api(self) -> bool:
+        return True
+
+    def get_lexico_objective_value(self, obj: str, res: ResultStorage) -> float:
+        if obj == "makespan":
+            sol: PreemptiveRcpspSolution = res[-1][0]
+            return sol.get_max_end_time()
+        return None
+
+    def set_lexico_objective(self, obj: str) -> None:
+        self.cp_model.minimize(self.variables["objectives"][obj])
+
+    def get_lexico_objectives_available(self) -> list[str]:
+        return list(self.variables["objectives"].keys())
+
+    def add_lexico_constraint(self, obj: str, value: float) -> Iterable[Any]:
+        self.cp_model.add(self.variables["objectives"][obj] <= value)
+
+    def create_modes_variables(self):
+        modes_dict = {}
+        for t in self.problem.tasks_list:
+            modes_dict[t] = {}
+            modes = list(self.problem.mode_details[t].keys())
+            nb_modes = len(self.problem.mode_details[t])
+            if nb_modes == 1:
+                modes_dict[t][modes[0]] = 1
+            else:
+                for m in modes:
+                    modes_dict[t][m] = self.cp_model.NewBoolVar(name=f"mode_{t}_{m}")
+                self.cp_model.add_exactly_one([modes_dict[t][m] for m in modes])
+        self.variables["modes"] = modes_dict
+
+    def create_resource_consumption_variables(self):
+        modes_var = self.variables["modes"]
+        resource_consumption_dict = {}
+        for t in self.problem.tasks_list:
+            resource_consumption_dict[t] = {}
+            modes = list(self.problem.mode_details[t].keys())
+            nb_modes = len(self.problem.mode_details[t])
+            if nb_modes == 1:
+                for r in self.problem.resources_list:
+                    cons = self.problem.mode_details[t][modes[0]].get(r, 0)
+                    if cons > 0:
+                        resource_consumption_dict[t][r] = cons
+            else:
+                potential_resources = set(
+                    [
+                        r
+                        for r in self.problem.resources_list
+                        if any(
+                            self.problem.mode_details[t][m].get(r, 0) > 0 for m in modes
+                        )
+                    ]
+                )
+                for r in potential_resources:
+                    values = [self.problem.mode_details[t][m].get(r, 0) for m in modes]
+                    resource_consumption_dict[t][r] = self.cp_model.NewIntVar(
+                        lb=min(values),
+                        ub=max(values),
+                        name=f"resource_consumption_{t}_{r}",
+                    )
+                for m in modes_var[t]:
+                    for r in potential_resources:
+                        cons = self.problem.mode_details[t][m].get(r, 0)
+                        self.cp_model.add(
+                            resource_consumption_dict[t][r] == cons
+                        ).only_enforce_if(modes_var[t][m])
+        self.variables["resource_consumption"] = resource_consumption_dict
+
+    def create_preempt_variables(self) -> None:
+        starts = {}
+        durations = {}
+        ends = {}
+        presences = {}
+        intervals = {}
+        opt_intervals = {}
+        for t in self.problem.tasks_list:
+            possible_durations = [
+                self.problem.get_task_mode_duration(t, m)
+                for m in self.problem.get_task_modes(t)
+            ]
+            max_duration = max(possible_durations)
+            starts[t] = [
+                self.cp_model.NewIntVar(
+                    lb=0, ub=self.problem.horizon, name=f"start_{t}_part_{i}"
+                )
+                for i in range(max(1, max_duration))
+            ]
+            ends[t] = [
+                self.cp_model.NewIntVar(
+                    lb=0, ub=self.problem.horizon, name=f"end_{t}_part_{i}"
+                )
+                for i in range(max(1, max_duration))
+            ]
+            durations[t] = [
+                self.cp_model.NewIntVar(lb=0, ub=1, name=f"duration_{t}_part_{i}")
+                for i in range(max(1, max_duration))
+            ]
+            presences[t] = [
+                self.cp_model.NewBoolVar(name=f"presence_{t}_{i}")
+                for i in range(max(1, max_duration))
+            ]
+            intervals[t] = [
+                self.cp_model.NewOptionalIntervalVar(
+                    start=starts[t][i],
+                    end=ends[t][i],
+                    size=durations[t][i],
+                    is_present=presences[t][i],
+                    name=f"interval_{t}_part_{i}",
+                )
+                for i in range(max(1, max_duration))
+            ]
+            for m in self.problem.get_task_modes(t):
+                duration = self.problem.get_task_mode_duration(t, m)
+                opt_intervals[(t, m)] = [
+                    self.cp_model.NewOptionalIntervalVar(
+                        start=starts[t][i],
+                        size=durations[t][i],
+                        end=ends[t][i],
+                        is_present=self.variables["modes"][t][m],
+                        name=f"interval_{t, m}_{i}",
+                    )
+                    for i in range(duration)
+                ]
+        self.variables["starts"] = starts
+        self.variables["durations"] = durations
+        self.variables["ends"] = ends
+        self.variables["presences"] = presences
+        self.variables["intervals"] = intervals
+        self.variables["opt_intervals"] = opt_intervals
+
+    def constraint_convention_variables(self):
+        for t in self.variables["starts"]:
+            nb_parts = len(self.variables["presences"][t])
+            modes = list(self.problem.mode_details[t].keys())
+            potential_durations = list(
+                set([self.problem.mode_details[t][m]["duration"] for m in modes])
+            )
+            # Only force first presence to be 1 if task has non-zero duration
+            if min(potential_durations) > 0:
+                self.cp_model.add(self.variables["presences"][t][0] == 1)
+                self.cp_model.add(self.variables["durations"][t][0] >= 1)
+            else:
+                # For duration-0 tasks, ensure start == end (since optional interval
+                # with is_present=False doesn't enforce end = start + size)
+                self.cp_model.add(
+                    self.variables["ends"][t][0] == self.variables["starts"][t][0]
+                )
+            for i in range(nb_parts - 1):
+                # Ordered intervals and present until some point, then all absent.
+                self.cp_model.add(
+                    self.variables["presences"][t][i]
+                    >= self.variables["presences"][t][i + 1]
+                )
+                self.cp_model.add(
+                    self.variables["ends"][t][i] <= self.variables["starts"][t][i + 1]
+                )
+                self.cp_model.add(
+                    self.variables["ends"][t][i] <= self.variables["ends"][t][i + 1]
+                )
+                self.cp_model.add(
+                    self.variables["starts"][t][i + 1] == self.variables["ends"][t][i]
+                ).only_enforce_if(self.variables["presences"][t][i + 1].Not())
+                self.cp_model.add(
+                    self.variables["durations"][t][i + 1] == 0
+                ).only_enforce_if(self.variables["presences"][t][i + 1].Not())
+                self.cp_model.add(
+                    self.variables["presences"][t][i + 1] == 0
+                ).only_enforce_if(self.variables["presences"][t][i].Not())
+            for m in self.problem.get_task_modes(t):
+                mode_selected = self.variables["modes"][t][m]
+                duration_mode = self.problem.get_task_mode_duration(t, m)
+                for i in range(duration_mode):
+                    self.cp_model.add(
+                        self.variables["durations"][t][i] == 1
+                    ).only_enforce_if(mode_selected)
+                    self.cp_model.add(
+                        self.variables["presences"][t][i] == 1
+                    ).only_enforce_if(mode_selected)
+                for j in range(duration_mode, len(self.variables["starts"][t])):
+                    self.cp_model.add(
+                        self.variables["presences"][t][j] == 0
+                    ).only_enforce_if(mode_selected)
+                    self.cp_model.add(
+                        self.variables["durations"][t][j] == 0
+                    ).only_enforce_if(mode_selected)
+
+    def constraint_precedence(self):
+        for t in self.problem.successors:
+            for succ in self.problem.successors[t]:
+                self.cp_model.add(
+                    self.variables["starts"][succ][0] >= self.variables["ends"][t][-1]
+                )
+
+    def constraint_resource(self):
+        fake_tasks = create_fake_tasks(self.problem)
+        for r in self.problem.resources:
+            if r not in self.problem.non_renewable_resources:
+                self.constraint_resource_cumulative(resource=r, fake_tasks=fake_tasks)
+            else:
+                self.constraint_resource_non_renewable(resource=r)
+
+    def constraint_resource_cumulative(
+        self, resource: str, fake_tasks: list[dict[str, int]]
+    ):
+        potential_tasks = [
+            t
+            for t in self.variables["resource_consumption"]
+            if resource in self.variables["resource_consumption"][t]
+        ]
+        intervals = [
+            (
+                self.variables["intervals"][t][i],
+                self.variables["resource_consumption"][t][resource],
+            )
+            for t in potential_tasks
+            for i in range(len(self.variables["intervals"][t]))
+        ]
+        fake_tasks_of_interest = [
+            (
+                self.cp_model.NewFixedSizeIntervalVar(
+                    start=f["start"], size=f["duration"], name=f"res_"
+                ),
+                f.get(resource, 0),
+            )
+            for f in fake_tasks
+            if f.get(resource, 0) > 0
+        ]
+        capa = self.problem.get_max_resource_capacity(resource)
+        self.cp_model.add_cumulative(
+            [x[0] for x in intervals + fake_tasks_of_interest],
+            [x[1] for x in intervals + fake_tasks_of_interest],
+            capa,
+        )
+
+    def constraint_resource_non_renewable(self, resource: str):
+        potential_tasks = [
+            t
+            for t in self.variables["resource_consumption"]
+            if resource in self.variables["resource_consumption"][t]
+        ]
+        capa = self.problem.get_max_resource_capacity(resource)
+        self.cp_model.add(
+            sum(
+                [
+                    self.variables["resource_consumption"][t][resource]
+                    for t in potential_tasks
+                ]
+            )
+            <= capa
+        )
+
+    def retrieve_solution(
+        self, cpsolvercb: CpSolverSolutionCallback
+    ) -> PreemptiveRcpspSolution:
+        modes_dict = {}
+        schedule = {}
+        for t in self.variables["starts"]:
+            sched = []
+            for i in range(len(self.variables["starts"][t])):
+                present = cpsolvercb.value(self.variables["presences"][t][i])
+                if present:
+                    sched.append(
+                        (
+                            cpsolvercb.value(self.variables["starts"][t][i]),
+                            cpsolvercb.value(self.variables["ends"][t][i]),
+                        )
+                    )
+                else:
+                    break
+
+            # For duration-0 tasks, record the time point even though no parts are present
+            if len(sched) == 0:
+                time_point = cpsolvercb.value(self.variables["starts"][t][0])
+                schedule[t] = {
+                    "starts": [time_point],
+                    "ends": [time_point],
+                }
+            else:
+                schedule[t] = {
+                    "starts": [x[0] for x in sched],
+                    "ends": [x[1] for x in sched],
+                }
+
+            modes = list(self.variables["modes"][t].keys())
+            if len(modes) == 1:
+                modes_dict[t] = modes[0]
+            else:
+                for m in self.variables["modes"][t]:
+                    if cpsolvercb.value(self.variables["modes"][t][m]):
+                        modes_dict[t] = m
+
+        # Merge consecutive unit-time intervals
+        schedule = merge_consecutive_unit_intervals(schedule)
+
         modes = [
             modes_dict[t]
             for t in self.problem.tasks_list
@@ -643,6 +983,50 @@ def transform_calendar_preemptive_solution_to_preemptive(
     return PreemptiveRcpspSolution(
         problem=problem, rcpsp_schedule=sched, rcpsp_modes=solution.rcpsp_modes
     )
+
+
+def merge_consecutive_unit_intervals(
+    schedule: dict[str, dict[str, list[int]]],
+) -> dict[str, dict[str, list[int]]]:
+    """Merge consecutive unit-time intervals into larger intervals.
+
+    For example, transforms [0, 1], [1, 2], [2, 3] into [0, 3].
+    This is useful for post-processing solutions from unit-time decomposition models.
+
+    Args:
+        schedule: dict mapping task -> {"starts": [...], "ends": [...]}
+
+    Returns:
+        dict with same structure but with consecutive intervals merged
+    """
+    merged_schedule = {}
+    for task, sched in schedule.items():
+        starts = sched["starts"]
+        ends = sched["ends"]
+
+        if len(starts) == 0:
+            merged_schedule[task] = {"starts": [], "ends": []}
+            continue
+
+        merged_starts = [starts[0]]
+        merged_ends = []
+
+        for i in range(1, len(starts)):
+            # Check if current interval is consecutive to previous
+            if starts[i] == ends[i - 1]:
+                # Consecutive, don't add new start
+                pass
+            else:
+                # Gap found, close previous interval and start new one
+                merged_ends.append(ends[i - 1])
+                merged_starts.append(starts[i])
+
+        # Close last interval
+        merged_ends.append(ends[-1])
+
+        merged_schedule[task] = {"starts": merged_starts, "ends": merged_ends}
+
+    return merged_schedule
 
 
 def compute_binary_calendar_per_tasks(

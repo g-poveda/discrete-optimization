@@ -2,16 +2,18 @@
 #  This source code is licensed under the MIT license found in the
 #  LICENSE file in the root directory of this source tree.
 
-from typing import Union
+from typing import TYPE_CHECKING, Union
 
 from discrete_optimization.rcpsp.problem import RcpspProblem
-from discrete_optimization.rcpsp.problem_specialized_constraints import (
-    SpecialConstraintsPreemptiveRcpspProblem,
-)
-from discrete_optimization.rcpsp_preemptive.problem import PreemptiveRcpspProblem
 
-GENERIC_CLASS = Union[
-    RcpspProblem,
-    PreemptiveRcpspProblem,
-    SpecialConstraintsPreemptiveRcpspProblem,
-]
+if TYPE_CHECKING:
+    from discrete_optimization.rcpsp_preemptive.problem import PreemptiveRcpspProblem
+    from discrete_optimization.rcpsp_preemptive.problem_specialized_constraints import (
+        SpecialConstraintsPreemptiveRcpspProblem,
+    )
+
+    GENERIC_CLASS = Union[
+        RcpspProblem,
+        PreemptiveRcpspProblem,
+        SpecialConstraintsPreemptiveRcpspProblem,
+    ]

@@ -14,10 +14,16 @@ from discrete_optimization.rcpsp_preemptive.problem import (
     PreemptiveRcpspSolution,
     ScheduleGenerationScheme,
 )
+from discrete_optimization.rcpsp_preemptive.problem_specialized_constraints import (
+    SpecialConstraintsPreemptiveRcpspProblem,
+    SpecialPreemptiveRcpspSolution,
+)
 
 __all__ = [
     "PreemptiveRcpspProblem",
     "PreemptiveRcpspSolution",
     "PartialPreemptiveRcpspSolution",
     "ScheduleGenerationScheme",
+    "SpecialConstraintsPreemptiveRcpspProblem",
+    "SpecialPreemptiveRcpspSolution",
 ]

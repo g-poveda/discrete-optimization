@@ -14,7 +14,6 @@ from discrete_optimization.generic_tools.callbacks.early_stoppers import (
 from discrete_optimization.rcpsp.special_constraints import (
     SpecialConstraintsDescription,
 )
-from discrete_optimization.rcpsp.utils_preemptive import plot_ressource_view
 from discrete_optimization.rcpsp_multiskill.plots.plot_solution import (
     plot_resource_individual_gantt_preemptive,
 )
@@ -28,6 +27,7 @@ from discrete_optimization.rcpsp_multiskill.problem import (
 from discrete_optimization.rcpsp_multiskill.solvers.cp_mzn import (
     CpPartialPreemptiveMultiskillRcpspSolver,
 )
+from discrete_optimization.rcpsp_preemptive.utils import plot_ressource_view
 
 
 @pytest.fixture

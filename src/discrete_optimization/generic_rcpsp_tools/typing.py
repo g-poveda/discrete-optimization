@@ -5,11 +5,7 @@
 from typing import TYPE_CHECKING, Union
 
 from discrete_optimization.generic_tools.do_problem import Problem, Solution
-from discrete_optimization.rcpsp import (
-    PreemptiveRcpspProblem,
-    RcpspProblem,
-    SpecialConstraintsPreemptiveRcpspProblem,
-)
+from discrete_optimization.rcpsp.problem import RcpspProblem
 from discrete_optimization.rcpsp.solution import RcpspSolution
 from discrete_optimization.rcpsp_multiskill.problem import (
     MultiskillRcpspProblem,
@@ -19,7 +15,13 @@ from discrete_optimization.rcpsp_multiskill.problem import (
     VariantMultiskillRcpspSolution,
     VariantPreemptiveMultiskillRcpspSolution,
 )
-from discrete_optimization.rcpsp_preemptive.problem import PreemptiveRcpspSolution
+from discrete_optimization.rcpsp_preemptive.problem import (
+    PreemptiveRcpspProblem,
+    PreemptiveRcpspSolution,
+)
+from discrete_optimization.rcpsp_preemptive.problem_specialized_constraints import (
+    SpecialConstraintsPreemptiveRcpspProblem,
+)
 
 ANY_CLASSICAL_RCPSP = Union[
     RcpspProblem,

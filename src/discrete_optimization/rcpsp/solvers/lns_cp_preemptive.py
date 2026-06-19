@@ -23,13 +23,13 @@ from discrete_optimization.generic_tools.lns_mip import PostProcessSolution
 from discrete_optimization.generic_tools.result_storage.result_storage import (
     ResultStorage,
 )
-from discrete_optimization.rcpsp.problem_specialized_constraints import (
-    SpecialConstraintsPreemptiveRcpspProblem,
-    SpecialPreemptiveRcpspSolution,
-)
 from discrete_optimization.rcpsp_preemptive.problem import (
     PreemptiveRcpspProblem,
     PreemptiveRcpspSolution,
+)
+from discrete_optimization.rcpsp_preemptive.problem_specialized_constraints import (
+    SpecialConstraintsPreemptiveRcpspProblem,
+    SpecialPreemptiveRcpspSolution,
 )
 
 logger = logging.getLogger(__name__)

@@ -3,10 +3,12 @@
 #  LICENSE file in the root directory of this source tree.
 #  Transform a model without special constraints into one with those.
 #  Also permits to pass from a classic RCPSP to a preemptive version
-from discrete_optimization.rcpsp import SpecialConstraintsPreemptiveRcpspProblem
 from discrete_optimization.rcpsp.problem import (
     RcpspProblem,
     SpecialConstraintsDescription,
+)
+from discrete_optimization.rcpsp_preemptive.problem_specialized_constraints import (
+    SpecialConstraintsPreemptiveRcpspProblem,
 )
 
 

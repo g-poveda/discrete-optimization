@@ -43,10 +43,6 @@ from discrete_optimization.generic_tools.result_storage.result_storage import (
     ResultStorage,
 )
 from discrete_optimization.rcpsp.problem import RcpspProblem
-from discrete_optimization.rcpsp.problem_specialized_constraints import (
-    SpecialConstraintsPreemptiveRcpspProblem,
-    compute_constraints_details,
-)
 from discrete_optimization.rcpsp.solution import RcpspSolution
 from discrete_optimization.rcpsp.solvers.cp_mzn import CpMultimodePreemptiveRcpspSolver
 from discrete_optimization.rcpsp_multiskill.problem import (
@@ -65,6 +61,10 @@ from discrete_optimization.rcpsp_multiskill.solvers.cp_mzn_mspsp_instlib import 
     CpMspspMznMultiskillRcpspSolver,
 )
 from discrete_optimization.rcpsp_preemptive.problem import PreemptiveRcpspSolution
+from discrete_optimization.rcpsp_preemptive.problem_specialized_constraints import (
+    SpecialConstraintsPreemptiveRcpspProblem,
+    compute_constraints_details,
+)
 
 logger = logging.getLogger(__name__)
 

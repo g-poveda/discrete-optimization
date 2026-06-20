@@ -2,14 +2,34 @@
 #  This source code is licensed under the MIT license found in the
 #  LICENSE file in the root directory of this source tree.
 #  Cp-sat model for the preemptive rcpsp problem.
+import logging
 from typing import Any, Iterable
 
 import numpy as np
-from ortools.sat.python.cp_model import CpSolverSolutionCallback, Domain
+from ortools.sat.python.cp_model import (
+    CpSolverSolutionCallback,
+    Domain,
+    IntervalVar,
+    LinearExpr,
+    LinearExprT,
+)
 
+from discrete_optimization.generic_tasks_tools.enums import StartOrEnd
+from discrete_optimization.generic_tasks_tools.solvers.cpsat.calendar_preemptive import (
+    CalendarPreemptiveCpSatSolver,
+    CumulativeResource,
+    ModelingPreemptive,
+    OtherCalendarResource,
+    Task,
+)
 from discrete_optimization.generic_tools.do_problem import (
+    ModeOptim,
     ParamsObjectiveFunction,
     Solution,
+)
+from discrete_optimization.generic_tools.do_solver import WarmstartMixin
+from discrete_optimization.generic_tools.hyperparameters.hyperparameter import (
+    EnumHyperparameter,
 )
 from discrete_optimization.generic_tools.ortools_cpsat_tools import OrtoolsCpSatSolver
 from discrete_optimization.generic_tools.result_storage.result_storage import (
@@ -21,8 +41,10 @@ from discrete_optimization.rcpsp_preemptive.problem import (
     PreemptiveRcpspSolution,
 )
 
+logger = logging.getLogger(__name__)
 
-class CpSatPreemptiveRcpspSolver(OrtoolsCpSatSolver):
+
+class CpSatPreemptiveRcpspSolver(OrtoolsCpSatSolver, WarmstartMixin):
     problem: PreemptiveRcpspProblem
 
     def __init__(
@@ -169,6 +191,8 @@ class CpSatPreemptiveRcpspSolver(OrtoolsCpSatSolver):
                 nb_preemption = max_duration + 1  # Naive
             else:
                 nb_preemption = min(max_nb_preemption, max_duration + 1)
+            if not self.problem.preemptive_indicator[t]:
+                nb_preemption = 1
             starts[t] = [
                 self.cp_model.NewIntVar(
                     lb=0, ub=self.problem.horizon, name=f"start_{t}_{i}"
@@ -374,8 +398,31 @@ class CpSatPreemptiveRcpspSolver(OrtoolsCpSatSolver):
             problem=self.problem, rcpsp_schedule=schedule, rcpsp_modes=modes
         )
 
+    def set_warm_start(self, solution: PreemptiveRcpspSolution) -> None:
+        """Make the solver warm start from the given solution."""
+        self.cp_model.clear_hints()
+        for task in self.variables["starts"]:
+            starts = solution.rcpsp_schedule[task]["starts"]
+            ends = solution.rcpsp_schedule[task]["ends"]
+            # Set hints for each preemption part
+            for i, (st, end) in enumerate(zip(starts, ends)):
+                if i < len(self.variables["starts"][task]):
+                    self.cp_model.AddHint(self.variables["starts"][task][i], st)
+                    self.cp_model.AddHint(self.variables["ends"][task][i], end)
+                    self.cp_model.AddHint(self.variables["presences"][task][i], 1)
+            # Set remaining parts as not present
+            for i in range(len(starts), len(self.variables["starts"][task])):
+                self.cp_model.AddHint(self.variables["presences"][task][i], 0)
+        # Set mode hints
+        for task, mode in zip(self.problem.tasks_list_non_dummy, solution.rcpsp_modes):
+            if len(self.variables["modes"][task]) > 1:
+                for m in self.variables["modes"][task]:
+                    self.cp_model.AddHint(
+                        self.variables["modes"][task][m], 1 if m == mode else 0
+                    )
 
-class CpSatPreemptiveRcpspSolverUnitTime(OrtoolsCpSatSolver):
+
+class CpSatPreemptiveRcpspSolverUnitTime(OrtoolsCpSatSolver, WarmstartMixin):
     problem: PreemptiveRcpspProblem
 
     def __init__(
@@ -482,48 +529,88 @@ class CpSatPreemptiveRcpspSolverUnitTime(OrtoolsCpSatSolver):
                 for m in self.problem.get_task_modes(t)
             ]
             max_duration = max(possible_durations)
-            starts[t] = [
-                self.cp_model.NewIntVar(
-                    lb=0, ub=self.problem.horizon, name=f"start_{t}_part_{i}"
-                )
-                for i in range(max(1, max_duration))
-            ]
-            ends[t] = [
-                self.cp_model.NewIntVar(
-                    lb=0, ub=self.problem.horizon, name=f"end_{t}_part_{i}"
-                )
-                for i in range(max(1, max_duration))
-            ]
-            durations[t] = [
-                self.cp_model.NewIntVar(lb=0, ub=1, name=f"duration_{t}_part_{i}")
-                for i in range(max(1, max_duration))
-            ]
-            presences[t] = [
-                self.cp_model.NewBoolVar(name=f"presence_{t}_{i}")
-                for i in range(max(1, max_duration))
-            ]
-            intervals[t] = [
-                self.cp_model.NewOptionalIntervalVar(
-                    start=starts[t][i],
-                    end=ends[t][i],
-                    size=durations[t][i],
-                    is_present=presences[t][i],
-                    name=f"interval_{t}_part_{i}",
-                )
-                for i in range(max(1, max_duration))
-            ]
-            for m in self.problem.get_task_modes(t):
-                duration = self.problem.get_task_mode_duration(t, m)
-                opt_intervals[(t, m)] = [
+            if not self.problem.preemptive_indicator[t]:
+                starts[t] = [
+                    self.cp_model.NewIntVar(
+                        lb=0, ub=self.problem.horizon, name=f"start_{t}_part_{0}"
+                    )
+                ]
+                ends[t] = [
+                    self.cp_model.NewIntVar(
+                        lb=0, ub=self.problem.horizon, name=f"end_{t}_part_{0}"
+                    )
+                ]
+                durations[t] = [
+                    self.cp_model.NewIntVar(
+                        lb=min(possible_durations),
+                        ub=max_duration,
+                        name=f"duration_{t}_part_{0}",
+                    )
+                ]
+                presences[t] = [1]
+                intervals[t] = [
+                    self.cp_model.NewOptionalIntervalVar(
+                        start=starts[t][0],
+                        end=ends[t][0],
+                        size=durations[t][0],
+                        is_present=presences[t][0],
+                        name=f"interval_{t}_part_{0}",
+                    )
+                ]
+            else:
+                starts[t] = [
+                    self.cp_model.NewIntVar(
+                        lb=0, ub=self.problem.horizon, name=f"start_{t}_part_{i}"
+                    )
+                    for i in range(max(1, max_duration))
+                ]
+                ends[t] = [
+                    self.cp_model.NewIntVar(
+                        lb=0, ub=self.problem.horizon, name=f"end_{t}_part_{i}"
+                    )
+                    for i in range(max(1, max_duration))
+                ]
+                durations[t] = [
+                    self.cp_model.NewIntVar(lb=0, ub=1, name=f"duration_{t}_part_{i}")
+                    for i in range(max(1, max_duration))
+                ]
+                presences[t] = [
+                    self.cp_model.NewBoolVar(name=f"presence_{t}_{i}")
+                    for i in range(max(1, max_duration))
+                ]
+                intervals[t] = [
                     self.cp_model.NewOptionalIntervalVar(
                         start=starts[t][i],
-                        size=durations[t][i],
                         end=ends[t][i],
-                        is_present=self.variables["modes"][t][m],
-                        name=f"interval_{t, m}_{i}",
+                        size=durations[t][i],
+                        is_present=presences[t][i],
+                        name=f"interval_{t}_part_{i}",
                     )
-                    for i in range(duration)
+                    for i in range(max(1, max_duration))
                 ]
+            for m in self.problem.get_task_modes(t):
+                duration = self.problem.get_task_mode_duration(t, m)
+                if not self.problem.preemptive_indicator[t]:
+                    opt_intervals[(t, m)] = [
+                        self.cp_model.NewOptionalIntervalVar(
+                            start=starts[t][0],
+                            size=duration,
+                            end=ends[t][0],
+                            is_present=self.variables["modes"][t][m],
+                            name=f"interval_{t, m}_{0}",
+                        )
+                    ]
+                else:
+                    opt_intervals[(t, m)] = [
+                        self.cp_model.NewOptionalIntervalVar(
+                            start=starts[t][i],
+                            size=durations[t][i],
+                            end=ends[t][i],
+                            is_present=self.variables["modes"][t][m],
+                            name=f"interval_{t, m}_{i}",
+                        )
+                        for i in range(duration)
+                    ]
         self.variables["starts"] = starts
         self.variables["durations"] = durations
         self.variables["ends"] = ends
@@ -573,12 +660,13 @@ class CpSatPreemptiveRcpspSolverUnitTime(OrtoolsCpSatSolver):
                 mode_selected = self.variables["modes"][t][m]
                 duration_mode = self.problem.get_task_mode_duration(t, m)
                 for i in range(duration_mode):
-                    self.cp_model.add(
-                        self.variables["durations"][t][i] == 1
-                    ).only_enforce_if(mode_selected)
-                    self.cp_model.add(
-                        self.variables["presences"][t][i] == 1
-                    ).only_enforce_if(mode_selected)
+                    if self.problem.preemptive_indicator[t]:
+                        self.cp_model.add(
+                            self.variables["durations"][t][i] == 1
+                        ).only_enforce_if(mode_selected)
+                        self.cp_model.add(
+                            self.variables["presences"][t][i] == 1
+                        ).only_enforce_if(mode_selected)
                 for j in range(duration_mode, len(self.variables["starts"][t])):
                     self.cp_model.add(
                         self.variables["presences"][t][j] == 0
@@ -704,8 +792,57 @@ class CpSatPreemptiveRcpspSolverUnitTime(OrtoolsCpSatSolver):
             problem=self.problem, rcpsp_schedule=schedule, rcpsp_modes=modes
         )
 
+    def set_warm_start(self, solution: PreemptiveRcpspSolution) -> None:
+        """Make the solver warm start from the given solution."""
+        self.cp_model.clear_hints()
+        for task in self.variables["starts"]:
+            starts = solution.rcpsp_schedule[task]["starts"]
+            ends = solution.rcpsp_schedule[task]["ends"]
+            # Decompose each preemptive interval into unit-time parts
+            unit_idx = 0
+            for st, end in zip(starts, ends):
+                for t in range(st, end):
+                    if unit_idx < len(self.variables["starts"][task]):
+                        self.cp_model.AddHint(
+                            self.variables["starts"][task][unit_idx], t
+                        )
+                        self.cp_model.AddHint(
+                            self.variables["ends"][task][unit_idx], t + 1
+                        )
+                        self.cp_model.AddHint(
+                            self.variables["durations"][task][unit_idx], 1
+                        )
+                        self.cp_model.AddHint(
+                            self.variables["presences"][task][unit_idx], 1
+                        )
+                        unit_idx += 1
+            # Set remaining unit-time parts as not present
+            for i in range(unit_idx, len(self.variables["starts"][task])):
+                self.cp_model.AddHint(self.variables["presences"][task][i], 0)
+        # Set mode hints
+        for task, mode in zip(self.problem.tasks_list_non_dummy, solution.rcpsp_modes):
+            if len(self.variables["modes"][task]) > 1:
+                for m in self.variables["modes"][task]:
+                    self.cp_model.AddHint(
+                        self.variables["modes"][task][m], 1 if m == mode else 0
+                    )
 
-class CpSatCalendarPreemptiveSolver(OrtoolsCpSatSolver):
+
+class CpSatCalendarPreemptiveSolver(
+    CalendarPreemptiveCpSatSolver[Task, CumulativeResource, OtherCalendarResource],
+    WarmstartMixin,
+):
+    hyperparameters = [
+        EnumHyperparameter(
+            name="modeling_calendar_preemptive",
+            enum=ModelingPreemptive,
+            default=ModelingPreemptive.INDICATOR,
+        )
+    ]
+
+    def get_optional_duration_of_task(self, task: Task, mode: int) -> LinearExpr:
+        return self.variables["opt_durations"][task][mode]
+
     problem: PreemptiveRcpspProblem
 
     def __init__(
@@ -716,17 +853,77 @@ class CpSatCalendarPreemptiveSolver(OrtoolsCpSatSolver):
     ):
         super().__init__(problem, params_objective_function, **kwargs)
         self.variables = {}
-        self.durations, _, _ = compute_binary_calendar_per_tasks(self.problem)
+        # Use generic method from GenericSchedulingProblem
+        calendar_data = self.problem.compute_task_durations_with_calendar_preemption()
+        self.durations = calendar_data.durations
+
+    def implements_lexico_api(self) -> bool:
+        return True
+
+    def get_lexico_objectives_available(self) -> list[str]:
+        return list(self.variables["objectives"].keys())
+
+    def add_lexico_constraint(self, obj: str, value: float) -> Iterable[Any]:
+        return [self.cp_model.add(self.variables["objectives"][obj] <= value)]
+
+    def get_lexico_objective_value(self, obj: str, res: ResultStorage) -> float:
+        sol = res[-1][0]
+        kpis = self.problem.evaluate(sol)
+        return kpis[obj]
+
+    def set_lexico_objective(self, obj: str) -> None:
+        self.cp_model.minimize(self.variables["objectives"][obj])
 
     def init_model(self, **kwargs: Any) -> None:
         super().init_model(**kwargs)
-        self.create_main_variables()
-        self.constraint_duration_of_tasks()
+        kwargs = self.complete_with_default_hyperparameters(kwargs)
+        self.create_main_variables(
+            create_opt_duration=kwargs["modeling_calendar_preemptive"]
+            == ModelingPreemptive.ELEMENT
+        )
+        self.create_duration_constraints(
+            modeling=kwargs["modeling_calendar_preemptive"]
+        )
         self.constraint_resource()
         self.constraint_precedence()
-        self.cp_model.minimize(self.variables["ends"][self.problem.sink_task])
+        self.variables["objectives"] = {}
+        obj_list = []
+        for obj, weight in zip(
+            self.params_objective_function.objectives,
+            self.params_objective_function.weights,
+        ):
+            if obj == "nb_preempted_tasks" and weight != 0:
+                self.compute_nb_preempted_tasks()
+                self.variables["objectives"][obj] = self._nb_preempted_tasks
+                obj_list.append(weight * self.variables["objectives"][obj])
+            if obj == "makespan" and weight != 0:
+                self.variables["objectives"][obj] = self.variables["ends"][
+                    self.problem.sink_task
+                ]
+                obj_list.append(weight * self.variables["objectives"][obj])
+        if self.params_objective_function.sense_function == ModeOptim.MINIMIZATION:
+            self.cp_model.minimize(sum(obj_list))
+        if self.params_objective_function.sense_function == ModeOptim.MAXIMIZATION:
+            self.cp_model.maximize(sum(obj_list))
 
-    def create_main_variables(self):
+    def get_task_mode_interval(self, task: Task, mode: int) -> IntervalVar:
+        return self.variables["opt_intervals"][task][mode]
+
+    def get_task_start_or_end_variable(
+        self, task: Task, start_or_end: StartOrEnd
+    ) -> LinearExprT:
+        if start_or_end == StartOrEnd.START:
+            return self.variables["starts"][task]
+        if start_or_end == StartOrEnd.END:
+            return self.variables["ends"][task]
+
+    def get_task_duration_variable(self, task: Task):
+        return self.variables["durations"][task]
+
+    def get_task_mode_is_present_variable(self, task: Task, mode: int) -> LinearExprT:
+        return self.variables["presences"][task][mode]
+
+    def create_main_variables(self, create_opt_duration: bool = False):
         starts = {}
         ends = {}
         durations = {}
@@ -738,25 +935,16 @@ class CpSatCalendarPreemptiveSolver(OrtoolsCpSatSolver):
             starts[t] = self.cp_model.NewIntVar(
                 lb=0, ub=self.problem.horizon, name=f"start_{t}"
             )
-
             ends[t] = self.cp_model.NewIntVar(
                 lb=0, ub=self.problem.horizon, name=f"end_{t}"
             )
-            positive_durations = sorted(
-                list(
-                    set(
-                        [
-                            int(d)
-                            for m in self.problem.mode_details[t]
-                            for d in self.durations[(t, m)][1]
-                            if d >= 0
-                        ]
-                    )
+            positive_durations = self.problem.get_possible_durations_for_task(t)
+            if len(positive_durations) > 1:
+                durations[t] = self.cp_model.NewIntVarFromDomain(
+                    domain=Domain.FromValues(positive_durations), name=f"duration_{t}"
                 )
-            )
-            durations[t] = self.cp_model.NewIntVarFromDomain(
-                domain=Domain.FromValues(positive_durations), name=f"duration_{t}"
-            )
+            else:
+                durations[t] = positive_durations[0]
             intervals[t] = self.cp_model.NewIntervalVar(
                 start=starts[t], end=ends[t], size=durations[t], name=f"interval_{t}"
             )
@@ -766,23 +954,40 @@ class CpSatCalendarPreemptiveSolver(OrtoolsCpSatSolver):
             presences[t] = {}
             if len(modes) == 1:
                 opt_intervals[t][modes[0]] = intervals[t]
-                presences[t][modes[0]] = 1
                 opt_durations[t][modes[0]] = durations[t]
+                presences[t][modes[0]] = 1
             else:
                 for m in modes:
                     presences[t][m] = self.cp_model.NewBoolVar(name=f"presence_{t}_{m}")
+                    if create_opt_duration:
+                        poss_dur = self.problem.get_possible_durations_for_task_mode(
+                            task=t, mode=m
+                        )
+                        if len(poss_dur) > 1:
+                            opt_durations[t][m] = self.cp_model.NewIntVarFromDomain(
+                                domain=Domain.FromValues(poss_dur),
+                                name=f"duration_{t}_{m}",
+                            )
+                        else:
+                            opt_durations[t][m] = poss_dur[0]
+                    else:
+                        opt_durations[t][m] = durations[t]
                     opt_intervals[t][m] = self.cp_model.NewOptionalIntervalVar(
                         start=starts[t],
                         end=ends[t],
-                        size=durations[t],
+                        size=opt_durations[t][m],
                         is_present=presences[t][m],
                         name=f"opt_interval_{t}_{m}",
                     )
-                    self.cp_model.add(
-                        durations[t] == opt_durations[t][m]
-                    ).only_enforce_if(presences[t][m])
                 self.cp_model.add_exactly_one([presences[t][m] for m in presences[t]])
-
+        # Need to bind the duration of non preemptive task to the expected value.
+        for t in self.problem.tasks_list:
+            if not self.problem.is_task_calendar_preempted(t):
+                for m in self.problem.get_task_modes(t):
+                    dur = self.problem.get_task_mode_duration(t, m)
+                    self.cp_model.add(durations[t] == dur).only_enforce_if(
+                        presences[t][m]
+                    )
         self.variables["starts"] = starts
         self.variables["ends"] = ends
         self.variables["durations"] = durations
@@ -890,24 +1095,48 @@ class CpSatCalendarPreemptiveSolver(OrtoolsCpSatSolver):
             for i in self.variables["opt_intervals"][t]
             if self.problem.mode_details[t][i].get(resource, 0) > 0
         ]
+
+        # First: add a base cumulative constraint with ALL tasks and NO fake tasks
+        # This ensures resource limits are respected among real tasks
+        task_pulse_all = [
+            (self.variables["opt_intervals"][t][m], q) for t, m, q in potential_tasks
+        ]
+        if len(task_pulse_all) > 0:
+            self.cp_model.add_cumulative(
+                [x[0] for x in task_pulse_all],
+                [x[1] for x in task_pulse_all],
+                max_capacity,
+            )
+
+        # Second: add cumulative constraints with fake tasks for partial capacity reductions
+        # (excluding full gaps where capacity reduction equals max_capacity)
         different_calendar_values = set(
             [f.get(resource, 0) for f in fake_tasks if f.get(resource, 0) > 0]
         )
         for diff_value in different_calendar_values:
+            # Skip full capacity reductions - tasks can span these with adjusted duration
+            if diff_value >= max_capacity:
+                task_pulse = [
+                    (self.variables["opt_intervals"][t][m], q)
+                    for t, m, q in potential_tasks
+                    if not self.problem.is_task_calendar_preempted(t)
+                ]
+            else:
+                task_pulse = [
+                    (self.variables["opt_intervals"][t][m], q)
+                    for t, m, q in potential_tasks
+                    if q + diff_value <= max_capacity
+                    or not self.problem.is_task_calendar_preempted(t)
+                ]
             calendar_pulse = [
                 (
                     self.cp_model.new_fixed_size_interval_var(
-                        start=f["start"], size=f["duration"], name=f"dummy"
+                        start=f["start"], size=f["duration"], name=f"dummy_{resource}"
                     ),
                     f.get(resource, 0),
                 )
                 for f in fake_tasks
                 if 0 < f.get(resource, 0) <= diff_value
-            ]
-            task_pulse = [
-                (self.variables["opt_intervals"][t][m], q)
-                for t, m, q in potential_tasks
-                if q + diff_value <= max_capacity
             ]
             if len(task_pulse) == 0:
                 continue
@@ -931,6 +1160,10 @@ class CpSatCalendarPreemptiveSolver(OrtoolsCpSatSolver):
         )
 
     def retrieve_solution(self, cpsolvercb: CpSolverSolutionCallback) -> Solution:
+        for obj in self.variables["objectives"]:
+            logger.info(
+                f"Obj. {obj}: {cpsolvercb.value(self.variables['objectives'][obj])}"
+            )
         schedule = {}
         modes_dict = {}
         for t in self.variables["starts"]:
@@ -941,9 +1174,46 @@ class CpSatCalendarPreemptiveSolver(OrtoolsCpSatSolver):
                 if cpsolvercb.value(self.variables["presences"][t][m]) > 0:
                     modes_dict[t] = m
         modes = [modes_dict[t] for t in self.problem.tasks_list_non_dummy]
-        return PreemptiveRcpspSolution(
+
+        # Create calendar solution
+        calendar_solution = PreemptiveRcpspSolution(
             problem=self.problem, rcpsp_schedule=schedule, rcpsp_modes=modes
         )
+
+        # Transform to actual preemptive solution (split by calendar gaps)
+        preemptive_solution = transform_calendar_preemptive_solution_to_preemptive(
+            solution=calendar_solution,
+            problem=self.problem,
+        )
+
+        return preemptive_solution
+
+    def set_warm_start(self, solution: PreemptiveRcpspSolution) -> None:
+        """Make the solver warm start from the given solution.
+
+        The calendar solver models tasks as continuous intervals, so we use
+        the min start and max end from the preemptive solution.
+        """
+        self.cp_model.clear_hints()
+        for task in self.variables["starts"]:
+            starts = solution.rcpsp_schedule[task]["starts"]
+            ends = solution.rcpsp_schedule[task]["ends"]
+            if len(starts) > 0:
+                # Calendar solver uses single continuous interval
+                calendar_start = min(starts)
+                calendar_end = max(ends)
+                self.cp_model.AddHint(self.variables["starts"][task], calendar_start)
+                self.cp_model.AddHint(self.variables["ends"][task], calendar_end)
+                self.cp_model.AddHint(
+                    self.variables["durations"][task], calendar_end - calendar_start
+                )
+        # Set mode hints
+        for task, mode in zip(self.problem.tasks_list_non_dummy, solution.rcpsp_modes):
+            if len(self.variables["presences"][task]) > 1:
+                for m in self.variables["presences"][task]:
+                    self.cp_model.AddHint(
+                        self.variables["presences"][task][m], 1 if m == mode else 0
+                    )
 
 
 def transform_calendar_preemptive_solution_to_preemptive(
@@ -953,9 +1223,10 @@ def transform_calendar_preemptive_solution_to_preemptive(
     task_mode_to_calendar: dict[tuple, np.ndarray] = None,
 ) -> PreemptiveRcpspSolution:
     if resource_calendar_dict is None:
-        _, resource_calendar_dict, task_mode_to_calendar = (
-            compute_binary_calendar_per_tasks(problem)
-        )
+        # Use generic method from GenericSchedulingProblem
+        calendar_data = problem.compute_task_durations_with_calendar_preemption()
+        resource_calendar_dict = calendar_data.resource_calendar_dict
+        task_mode_to_calendar = calendar_data.task_mode_to_calendar
     sched = {}
     for t in solution.rcpsp_schedule:
         mode = 1
@@ -1027,79 +1298,3 @@ def merge_consecutive_unit_intervals(
         merged_schedule[task] = {"starts": merged_starts, "ends": merged_ends}
 
     return merged_schedule
-
-
-def compute_binary_calendar_per_tasks(
-    problem: PreemptiveRcpspProblem,
-) -> tuple[tuple, dict[tuple, np.ndarray], dict[tuple[int, int], tuple]]:
-    """Compute duration data for tasks considering resource calendar preemption.
-
-    Args:
-        problem: PreemptiveRcpspProblem instance
-
-    Returns:
-        tuple of:
-        - durations: dict[(task, mode)] -> (duration_array, interval_dict)
-        - resource_calendar_dict: cached binary calendars for resource consumption patterns
-        - task_mode_to_calendar: maps (task, mode) to the calendar key used
-
-    """
-    # Import helper functions from generic_scheduling
-    from discrete_optimization.generic_tasks_tools.generic_scheduling import (
-        compute_binary_calendar_for_resource_consumption,
-        compute_duration_with_calendar_preemption,
-    )
-
-    # Prepare resource availabilities
-    availability = {
-        res: np.array(problem.get_resource_availability_array(res))
-        for res in problem.resources_list
-    }
-
-    resource_calendar_dict = {}
-    durations = {}
-    task_mode_to_calendar = {}
-
-    for i in problem.tasks_list:
-        for m in problem.mode_details[i]:
-            duration = problem.mode_details[i][m]["duration"]
-            resource_consumption = {
-                r: problem.mode_details[i][m].get(r, 0) for r in problem.resources_list
-            }
-
-            # Filter to non-zero consumption
-            resource_consumption = {
-                r: resource_consumption[r]
-                for r in resource_consumption
-                if resource_consumption[r] > 0
-            }
-
-            if len(resource_consumption) == 0:
-                # No resource required
-                durations[(i, m)] = ([], {duration: [[0, problem.horizon]]})
-            else:
-                # Create a hashable key for this resource consumption pattern
-                if len(resource_consumption) == 1:
-                    res_id = list(resource_consumption.keys())[0]
-                    calendar_key = (res_id, resource_consumption[res_id])
-                else:
-                    calendar_key = tuple(sorted(resource_consumption.items()))
-
-                # Compute binary calendar if not cached
-                if calendar_key not in resource_calendar_dict:
-                    binary_calendar = compute_binary_calendar_for_resource_consumption(
-                        resource_availabilities=availability,
-                        resource_consumption=resource_consumption,
-                    )
-                    resource_calendar_dict[calendar_key] = binary_calendar
-
-                # Compute duration with preemption
-                binary_calendar = resource_calendar_dict[calendar_key]
-                durations[(i, m)] = compute_duration_with_calendar_preemption(
-                    orig_duration=duration,
-                    resource_calendar=binary_calendar,
-                    cumulative_resource_calendar=np.cumsum(binary_calendar),
-                )
-                task_mode_to_calendar[(i, m)] = calendar_key
-
-    return durations, resource_calendar_dict, task_mode_to_calendar

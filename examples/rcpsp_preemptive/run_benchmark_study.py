@@ -1,8 +1,9 @@
 """Benchmark study comparing preemptive RCPSP solvers.
 
 This script uses the study framework to compare:
-- CpSatPreemptiveRcpspSolver (regular)
+- CpSatPreemptiveRcpspSolver (regular with explicit preemption)
 - CpSatPreemptiveRcpspSolverUnitTime (unit-time decomposition)
+- CpSatCalendarPreemptiveSolver (calendar-aware with transformation)
 
 On instances with varying resource calendars.
 """
@@ -26,6 +27,7 @@ from discrete_optimization.generic_tools.study.database import is_empty_metrics
 from discrete_optimization.generic_tools.study.study import Study
 from discrete_optimization.rcpsp_preemptive.problem import PreemptiveRcpspProblem
 from discrete_optimization.rcpsp_preemptive.solvers.cpsat import (
+    CpSatCalendarPreemptiveSolver,
     CpSatPreemptiveRcpspSolver,
     CpSatPreemptiveRcpspSolverUnitTime,
 )
@@ -35,7 +37,7 @@ INSTANCES_FILE = "instances/all_instances.pkl"
 TIME_LIMIT = 60
 STUDY_NAME = "preemptive-rcpsp-study"
 OVERWRITE = False  # Overwrite previous study with same name?
-MAX_RETRY = 0  # Retry failed experiments?
+MAX_RETRY = 1  # Retry failed experiments?
 
 
 def load_all_instances() -> dict[str, PreemptiveRcpspProblem]:
@@ -95,6 +97,27 @@ solver_configs = {
     ),
     "unit_time_120s": SolverConfig(
         cls=CpSatPreemptiveRcpspSolverUnitTime,
+        kwargs=dict(
+            time_limit=120,
+            parameters_cp=p,
+        ),
+    ),
+    "calendar_30s": SolverConfig(
+        cls=CpSatCalendarPreemptiveSolver,
+        kwargs=dict(
+            time_limit=30,
+            parameters_cp=p,
+        ),
+    ),
+    "calendar_60s": SolverConfig(
+        cls=CpSatCalendarPreemptiveSolver,
+        kwargs=dict(
+            time_limit=60,
+            parameters_cp=p,
+        ),
+    ),
+    "calendar_120s": SolverConfig(
+        cls=CpSatCalendarPreemptiveSolver,
         kwargs=dict(
             time_limit=120,
             parameters_cp=p,
@@ -192,10 +215,11 @@ def quick_test():
         "j301_1_sm_random_20",
     ]
 
-    # Use only fast solver configs
+    # Use only fast solver configs (one of each type)
     configs = {
         "regular_30s": solver_configs["regular_30s"],
         "unit_time_60s": solver_configs["unit_time_60s"],
+        "calendar_30s": solver_configs["calendar_30s"],
     }
 
     run_study(

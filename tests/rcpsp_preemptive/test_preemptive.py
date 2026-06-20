@@ -263,7 +263,3 @@ def test_preeemptive_sgs():
     assert solution.get_max_preempted() == 3
     assert solution.get_nb_task_preemption() == 4
     assert solution.get_end_time(rcpsp_problem.sink_task) == 77
-
-
-if __name__ == "__main__":
-    test_preeemptive_sgs()

@@ -68,6 +68,7 @@ class CpsatParetoSolver(SolverDO):
         obj_vars: list[cp_model.LinearExpr],
         callbacks: list[Callback] = None,
         time_limit: int = None,
+        take_last_solutions: bool = True,
         subsolver_kwargs: dict = None,
         **kwargs,
     ):
@@ -94,7 +95,10 @@ class CpsatParetoSolver(SolverDO):
                 logger.info("  -> Infeasible. Pareto Front Search Complete.")
                 break
             # Get candidate solution
-            sol_candidate = res.get_best_solution()
+            if take_last_solutions:
+                sol_candidate = res[-1][0]
+            else:
+                sol_candidate = res.get_best_solution()
             vals_candidate = [
                 self.dict_function[obj](sol_candidate) for obj in self.objective_names
             ]
@@ -130,7 +134,11 @@ class CpsatParetoSolver(SolverDO):
                     break
                 # Update current best values based on this tightening step
                 # Again, re-evaluate via problem
-                sol_lex, fit_lex = res_lex.get_best_solution_fit()
+
+                if take_last_solutions:
+                    sol_lex, fit_lex = res[-1]
+                else:
+                    sol_lex, fit_lex = res.get_best_solution()
                 current_vals = [
                     self.dict_function[obj](sol_lex) for obj in self.objective_names
                 ]

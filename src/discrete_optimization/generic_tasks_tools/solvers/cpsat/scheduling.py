@@ -52,6 +52,12 @@ class SchedulingCpSatSolver(OrtoolsCpSatSolver, SchedulingCpSolver[Task]):
         """
         ...
 
+    # @abstractmethod
+    def get_task_duration_variable(self, task: Task):
+        return self.get_task_start_or_end_variable(
+            task, StartOrEnd.END
+        ) - self.get_task_start_or_end_variable(task, StartOrEnd.START)
+
     def add_constraint_on_task(
         self, task: Task, start_or_end: StartOrEnd, sign: SignEnum, time: int
     ) -> list[Any]:

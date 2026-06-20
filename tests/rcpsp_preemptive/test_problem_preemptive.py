@@ -139,7 +139,3 @@ def test_partial_sgs(rcpsp_problem_file):
         for i in range(min(len(starts), len(partial_schedule[o]["starts"]))):
             assert starts[i] == partial_schedule[o]["starts"][i]
             assert ends[i] == partial_schedule[o]["ends"][i]
-
-
-if __name__ == "__main__":
-    test_partial_sgs(single_modes_files[0])

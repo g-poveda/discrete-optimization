@@ -21,6 +21,9 @@ from discrete_optimization.generic_rcpsp_tools.attribute_type import (
     ListIntegerRcpsp,
     PermutationRcpsp,
 )
+from discrete_optimization.generic_tasks_tools.calendar_preemptive import (
+    CalendarPreemptiveProblem,
+)
 from discrete_optimization.generic_tasks_tools.calendar_resource import (
     convert_calendar_to_availability_intervals,
     merge_resources_calendars,
@@ -2006,6 +2009,7 @@ class MultiskillRcpspProblem(
     GenericSchedulingProblem[
         Task, UnaryResource, Skill, NonSkillCumulativeResource, NonRenewableResource
     ],
+    CalendarPreemptiveProblem[Task, NonSkillCumulativeResource, UnaryResource],
 ):
     sgs: ScheduleGenerationScheme
     skills_set: set[str]
@@ -2248,6 +2252,9 @@ class MultiskillRcpspProblem(
     def update_resource_availabilities(self) -> None:
         super().update_resource_availabilities()
         self.get_resource_availabilities.cache_clear()
+
+    def is_task_calendar_preempted(self, task: Task) -> bool:
+        return self.preemptive_indicator[task]
 
     @property
     def tasks_list(self) -> list[Task]:

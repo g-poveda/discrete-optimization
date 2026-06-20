@@ -47,13 +47,19 @@ AvailabilityIntervals = list[tuple[int, int, int]]  # start, end, value
 class GenericSchedulingImplProblem(
     GenericSchedulingProblem[
         Task, UnaryResource, Skill, NonSkillCumulativeResource, NonRenewableResource
-    ]
+    ],
 ):
     """Generic implementation of a scheduling problem.
 
     It implements the abstract class `GenericSchedulingProblem`.
 
     """
+
+    def is_only_calendar_preemptive(self, task: Task) -> bool:
+        return False
+
+    def is_anytime_preemptive(self, task: Task) -> bool:
+        return False
 
     def __init__(
         self,
@@ -412,6 +418,7 @@ class GenericSchedulingImplProblem(
         allocation: bool = True,
         time_lags: bool = True,
         time_windows: bool = True,
+        # calendar_preemption: bool = True
     ) -> bool:
         """Partial checks on solution.
 
@@ -427,6 +434,7 @@ class GenericSchedulingImplProblem(
             allocation:
             time_lags:
             time_windows:
+            #calendar_preemption:
 
         Returns:
 
@@ -461,6 +469,8 @@ class GenericSchedulingImplProblem(
             and (not time_lags or variable.check_time_lags())
             # time window
             and (not time_windows or variable.check_time_windows())
+            # calendar preempted
+            # and (not calendar_preemption or variable.check_calendar_preemption_constraint())
         )
 
     def get_solution_type(self) -> type[Solution]:

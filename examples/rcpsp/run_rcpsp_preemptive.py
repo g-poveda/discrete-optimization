@@ -155,7 +155,6 @@ def main_cpsat_cal_preemptive():
         time_limit=10,
     )
     sol = res[-1][0]
-    sol = transform_calendar_preemptive_solution_to_preemptive(sol, preemptive)
     print(preemptive.satisfy(sol), preemptive.evaluate(sol))
     plot_task_gantt(preemptive, sol)
     plot_ressource_view(preemptive, sol)

@@ -146,6 +146,8 @@ class GenericSchedulingAutoCpSatSolver(
     start_or_end_variables: dict[tuple[Task, StartOrEnd], LinearExprT]
     duration_variables: dict[Task, LinearExprT]
     task_interval_variables = dict[Task, IntervalVar]
+    # in case of optional tasks
+    is_present_variables: dict[Task, LinearExprT]
     modes_is_present: dict[Task, dict[int, LinearExprT]]
     modes_intervals: dict[Task, dict[int, IntervalVar]]
     modes_start_variables: dict[Task, dict[int, LinearExprT]]
@@ -319,6 +321,7 @@ class GenericSchedulingAutoCpSatSolver(
         self.start_or_end_variables = {}
         self.duration_variables = {}
         self.task_interval_variables = {}
+        self.is_present_variables = {}
         self.modes_is_present = {}
         self.modes_intervals = {}
         self.modes_start_variables = {}
@@ -474,6 +477,220 @@ class GenericSchedulingAutoCpSatSolver(
                         name=f"interval_mode_{task}_{mode}",
                     )
                 )
+
+    # Pre-emptivity model
+    def init_preemptive(self, **kwargs):
+        # WIP
+        self._create_mode_variables()
+        self.create_preempt_variables()
+        self._constraint_convention_preempt_variables()
+
+    def create_preempt_variables(self) -> None:
+        for task in self.problem.tasks_list:
+            self._create_preempt_variables_for_task(task)
+
+    def _create_preempt_variables_for_task(self, task: Task):
+        possible_durations = [
+            self.problem.get_task_mode_duration(task, m)
+            for m in self.problem.get_task_modes(task)
+        ]
+        max_duration = max(possible_durations)
+        if not self.problem.is_preemptive(task):
+            self.start_or_end_variables[(task, "subpart", 0, StartOrEnd.START)] = (
+                self.cp_model.NewIntVar(
+                    lb=self.get_task_start_or_end_lower_bound(task, StartOrEnd.START),
+                    ub=self.get_task_start_or_end_upper_bound(task, StartOrEnd.END),
+                    name=f"start_{task}_part_{0}",
+                )
+            )
+            self.start_or_end_variables[(task, "subpart", 0, StartOrEnd.END)] = (
+                self.cp_model.NewIntVar(
+                    lb=self.get_task_start_or_end_lower_bound(task, StartOrEnd.END),
+                    ub=self.get_task_start_or_end_upper_bound(task, StartOrEnd.END),
+                    name=f"end_{task}_part_{0}",
+                )
+            )
+            self.duration_variables[(task, "subpart", 0)] = self.cp_model.NewIntVar(
+                lb=min(possible_durations),
+                ub=max_duration,
+                name=f"duration_{task}_part_{0}",
+            )
+            self.is_present_variables[(task, "subpart", 0)] = 1
+            self.task_interval_variables[(task, "subpart", 0)] = (
+                self.cp_model.NewIntervalVar(
+                    start=self.start_or_end_variables[
+                        (task, "subpart", 0, StartOrEnd.START)
+                    ],
+                    end=self.start_or_end_variables[
+                        (task, "subpart", 0, StartOrEnd.END)
+                    ],
+                    size=self.duration_variables[(task, "subpart", 0)],
+                    name=f"interval_{task}_part_{0}",
+                )
+            )
+        else:
+            for i in range(max(1, max_duration)):
+                self.start_or_end_variables[(task, "subpart", i, StartOrEnd.START)] = (
+                    self.cp_model.NewIntVar(
+                        lb=self.get_task_start_or_end_lower_bound(
+                            task, StartOrEnd.START
+                        ),
+                        ub=self.get_task_start_or_end_upper_bound(
+                            task, StartOrEnd.START
+                        ),
+                        name=f"start_{task}_part_{i}",
+                    )
+                )
+                self.start_or_end_variables[(task, "subpart", i, StartOrEnd.END)] = (
+                    self.cp_model.NewIntVar(
+                        lb=self.get_task_start_or_end_lower_bound(task, StartOrEnd.END),
+                        ub=self.get_task_start_or_end_upper_bound(task, StartOrEnd.END),
+                        name=f"end_{task}_part_{i}",
+                    )
+                )
+                self.duration_variables[(task, "subpart", i)] = self.cp_model.NewIntVar(
+                    lb=0, ub=1, name=f"duration_{task}_part_{i}"
+                )
+
+                self.is_present_variables[(task, "subpart", i)] = (
+                    self.cp_model.NewBoolVar(name=f"presence_{task}_{i}")
+                )
+                self.task_interval_variables[(task, "subpart", i)] = (
+                    self.cp_model.NewOptionalIntervalVar(
+                        start=self.start_or_end_variables[
+                            (task, "subpart", i, StartOrEnd.START)
+                        ],
+                        end=self.start_or_end_variables[
+                            (task, "subpart", i, StartOrEnd.END)
+                        ],
+                        size=self.duration_variables[(task, "subpart", i)],
+                        is_present=self.is_present_variables[(task, "subpart", i)],
+                        name=f"interval_{task}_part_{i}",
+                    )
+                )
+        for m in self.problem.get_task_modes(task):
+            duration = self.problem.get_task_mode_duration(task, m)
+            if not self.problem.is_preemptive(task):
+                if (task, "subpart", 0) not in self.modes_intervals:
+                    self.modes_intervals[(task, "subpart", 0)] = {}
+                self.modes_intervals[(task, "subpart", 0)][m] = (
+                    self.cp_model.NewIntervalVar(
+                        start=self.start_or_end_variables[
+                            (task, "subpart", 0, StartOrEnd.START)
+                        ],
+                        size=duration,
+                        end=self.start_or_end_variables[
+                            (task, "subpart", 0, StartOrEnd.END)
+                        ],
+                        name=f"interval_{task, m}_{0}",
+                    )
+                )
+            else:
+                for i in range(duration):
+                    if (task, "subpart", i) not in self.modes_intervals:
+                        self.modes_intervals[(task, "subpart", i)] = {}
+                        self.modes_intervals[(task, "subpart", i)][m] = (
+                            self.cp_model.NewOptionalIntervalVar(
+                                start=self.start_or_end_variables[
+                                    (task, "subpart", i, StartOrEnd.START)
+                                ],
+                                size=self.duration_variables[(task, "subpart", i)],
+                                end=self.start_or_end_variables[
+                                    (task, "subpart", i, StartOrEnd.END)
+                                ],
+                                is_present=self.get_task_mode_is_present_variable(
+                                    task, m
+                                ),
+                                name=f"interval_{task, m}_{i}",
+                            )
+                        )
+
+    def _constraint_convention_preempt_variables(self):
+        tasks_with_subparts = list(
+            set([x for x in self.start_or_end_variables if x[1] == "subpart"])
+        )
+        for task in tasks_with_subparts:
+            nb_parts = len(
+                [
+                    x
+                    for x in self.duration_variables
+                    if isinstance(x, tuple) and x[0] == task and x[1] == "subpart"
+                ]
+            )
+            modes = list(self.problem.get_task_modes(task))
+            potential_durations = list(
+                set([self.problem.get_task_mode_duration(task, m) for m in modes])
+            )
+            # Only force first presence to be 1 if task has non-zero duration
+            if min(potential_durations) > 0:
+                self.cp_model.add(self.is_present_variables[(task, "subpart", 0)] == 1)
+                self.cp_model.add(self.duration_variables[(task, "subpart", 0)] == 1)
+            else:
+                # For duration-0 tasks, ensure start == end (since optional interval
+                # with is_present=False doesn't enforce end = start + size)
+                self.cp_model.add(
+                    self.start_or_end_variables[(task, "subpart", 0, StartOrEnd.END)]
+                    == self.start_or_end_variables[
+                        (task, "subpart", 0, StartOrEnd.START)
+                    ]
+                )
+            for i in range(nb_parts - 1):
+                # Ordered intervals and present until some point, then all absent.
+                self.cp_model.add(
+                    self.is_present_variables[(task, "subpart", i)]
+                    >= self.is_present_variables[(task, "subpart", i + 1)]
+                )
+                self.cp_model.add(
+                    self.start_or_end_variables[(task, "subpart", i, StartOrEnd.END)]
+                    <= self.start_or_end_variables[
+                        (task, "subpart", i + 1, StartOrEnd.START)
+                    ]
+                )
+                self.cp_model.add(
+                    self.start_or_end_variables[(task, "subpart", i, StartOrEnd.END)]
+                    <= self.start_or_end_variables[
+                        (task, "subpart", i + 1, StartOrEnd.END)
+                    ]
+                )
+                self.cp_model.add(
+                    self.start_or_end_variables[
+                        (task, "subpart", i + 1, StartOrEnd.START)
+                    ]
+                    == self.start_or_end_variables[(task, "subpart", i, StartOrEnd.END)]
+                ).only_enforce_if(
+                    self.is_present_variables[(task, "subpart", i + 1)].Not()
+                )
+                self.cp_model.add(
+                    self.duration_variables[(task, "subpart", i + 1)] == 0
+                ).only_enforce_if(self.is_present_variables[(task, "subpart", i + 1)])
+                self.cp_model.add(
+                    self.is_present_variables[(task, "subpart", i + 1)] == 0
+                ).only_enforce_if(self.is_present_variables[(task, "subpart", i)].Not())
+            for m in self.problem.get_task_modes(task):
+                mode_selected = self.modes_is_present[task][m]
+                duration_mode = self.problem.get_task_mode_duration(task, m)
+                for i in range(duration_mode):
+                    if self.problem.is_preemptive(task):
+                        self.cp_model.add(
+                            self.duration_variables[(task, "subpart", i)] == 1
+                        ).only_enforce_if(mode_selected)
+                        self.cp_model.add(
+                            self.is_present_variables[(task, "subpart", i)] == 1
+                        ).only_enforce_if(mode_selected)
+                subparts = sorted(
+                    [
+                        x[2]
+                        for x in self.is_present_variables
+                        if isinstance(x, tuple) and x[0] == task and x[1] == "subpart"
+                    ]
+                )
+                for j in range(duration_mode, max(subparts) + 1):
+                    self.cp_model.add(
+                        self.is_present_variables[(task, "subpart", j)] == 0
+                    ).only_enforce_if(mode_selected)
+                    self.cp_model.add(
+                        self.duration_variables[(task, "subpart", j)] == 0
+                    ).only_enforce_if(mode_selected)
 
     def _create_skill_variables(self):
         for task in self.problem.tasks_list:

@@ -25,6 +25,9 @@ from discrete_optimization.generic_tasks_tools.allocation import (
     NoUnaryResource,
     WithoutAllocationProblem,
 )
+from discrete_optimization.generic_tasks_tools.calendar_preemptive import (
+    CalendarPreemptiveProblem,
+)
 from discrete_optimization.generic_tasks_tools.calendar_resource import (
     convert_calendar_to_availability_intervals,
 )
@@ -431,6 +434,7 @@ class PreemptiveRcpspProblem(
         Task, NoUnaryResource, NonSkillCumulativeResource, NoUnaryResource
     ],
     WithoutAllocationProblem[Task],
+    CalendarPreemptiveProblem[Task, NonSkillCumulativeResource, NoUnaryResource],
 ):
     """Preemptive RCPSP problem with calendar-aware resource availability.
 
@@ -458,7 +462,7 @@ class PreemptiveRcpspProblem(
         non_renewable_resources: list[str],
         mode_details: dict[Hashable, dict[Union[str, int], dict[str, int]]],
         successors: dict[Union[int, str], list[Union[str, int]]],
-        horizon,
+        horizon: int,
         tasks_list: list[Union[int, str]] = None,
         source_task=None,
         sink_task=None,
@@ -580,6 +584,9 @@ class PreemptiveRcpspProblem(
     @property
     def non_skill_cumulative_resources_list(self) -> list[NonSkillCumulativeResource]:
         return [r for r in self.resources_list if r not in self.non_renewable_resources]
+
+    def is_task_calendar_preempted(self, task: Task) -> bool:
+        return self.preemptive_indicator[task]
 
     def get_task_modes(self, task: Task) -> set[int]:
         return set(self.mode_details[task].keys())
@@ -735,6 +742,7 @@ class PreemptiveRcpspProblem(
         )
         result = {
             "makespan": obj_makespan,
+            "nb_preempted_tasks": variable.get_nb_task_preemption(),
             "mean_resource_reserve": obj_mean_resource_reserve,
         }
         if self.do_special_constraints:
@@ -842,6 +850,14 @@ class PreemptiveRcpspProblem(
                         f"Task {t} is not executed long enough {sum_dur} vs {dur}"
                     )
                     return False
+            # Check preemptivity capability of tasks
+            for t in self.tasks_list:
+                if (
+                    not self.preemptive_indicator[t]
+                    and variable.get_number_of_part(t) > 1
+                ):
+                    logger.debug(f"task {t} is preemptive while it shouldn't")
+                    return False
             return True
 
     def get_solution_type(self) -> type[Solution]:
@@ -866,9 +882,12 @@ class PreemptiveRcpspProblem(
 
     def get_objective_register(self) -> ObjectiveRegister:
         dict_objective = {
-            "makespan": ObjectiveDoc(type=TypeObjective.OBJECTIVE, default_weight=-1.0),
+            "makespan": ObjectiveDoc(type=TypeObjective.OBJECTIVE, default_weight=1.0),
             "mean_resource_reserve": ObjectiveDoc(
-                type=TypeObjective.OBJECTIVE, default_weight=1.0
+                type=TypeObjective.OBJECTIVE, default_weight=0
+            ),
+            "nb_preempted_tasks": ObjectiveDoc(
+                type=TypeObjective.PENALTY, default_weight=-10
             ),
         }
         if self.do_special_constraints:
@@ -877,10 +896,8 @@ class PreemptiveRcpspProblem(
             )
 
         return ObjectiveRegister(
-            objective_sense=ModeOptim.MAXIMIZATION,
-            objective_handling=ObjectiveHandling.AGGREGATE
-            if self.do_special_constraints
-            else ObjectiveHandling.SINGLE,
+            objective_sense=ModeOptim.MINIMIZATION,
+            objective_handling=ObjectiveHandling.AGGREGATE,
             dict_objective_to_doc=dict_objective,
         )
 

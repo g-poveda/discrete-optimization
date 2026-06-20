@@ -4,11 +4,8 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from collections.abc import Hashable
-from dataclasses import dataclass
-from typing import Generic, Optional, Union
+from typing import Generic, Optional
 
-import numpy as np
 import wrapt
 
 from discrete_optimization.generic_tasks_tools.allocation import (
@@ -29,10 +26,12 @@ from discrete_optimization.generic_tasks_tools.precedence_scheduling import (
     PrecedenceSchedulingProblem,
     PrecedenceSchedulingSolution,
 )
+from discrete_optimization.generic_tasks_tools.preemptive import (
+    PreemptiveSchedulingProblem,
+)
 from discrete_optimization.generic_tasks_tools.skill import (
     NonSkillCumulativeResource,
     Skill,
-    SkillProblem,
     SkillSolution,
 )
 from discrete_optimization.generic_tasks_tools.solvers.cpm import Cpm
@@ -45,7 +44,9 @@ from discrete_optimization.generic_tasks_tools.timewindow import (
     TimewindowProblem,
     TimewindowSolution,
 )
-
+from typing import Union, Hashable
+from dataclasses import dataclass
+import numpy as np
 CumulativeResource = Skill | NonSkillCumulativeResource
 Resource = CumulativeResource | UnaryResource
 AnyResource = NonRenewableResource | Resource
@@ -325,7 +326,10 @@ def compute_duration_with_calendar_preemption(
 
 
 class GenericSchedulingProblem(
-    SkillProblem[Task, UnaryResource, Skill, NonSkillCumulativeResource, UnaryResource],
+    # SkillProblem[Task, UnaryResource, Skill, NonSkillCumulativeResource, UnaryResource],
+    PreemptiveSchedulingProblem[
+        Task, UnaryResource, Skill, NonSkillCumulativeResource, UnaryResource
+    ],
     NonRenewableResourceProblem[Task, NonRenewableResource],
     PrecedenceSchedulingProblem[Task],
     TimelagProblem[Task],
@@ -389,7 +393,7 @@ class GenericSchedulingProblem(
     def update_resource_availabilities(self) -> None:
         super().update_resource_availabilities()
         self.check_calendar_resources_list()
-        self.compute_task_durations_with_calendar_preemption.cache_clear()
+        # self.compute_task_durations_with_calendar_preemption.cache_clear()
 
     def is_unary_resource(self, resource: Resource) -> bool:
         """Check if given resource is a unary resource."""
@@ -824,9 +828,9 @@ class GenericSchedulingProblem(
             - task_mode_to_calendar: mapping from (task, mode) to calendar key
 
         Example:
-            >>> data = problem.compute_task_durations_with_calendar_preemption()
-            >>> duration_array, interval_dict = data.durations[(task_1, 1)]
-            >>> actual_duration = data.get_duration_for_start_time(task_1, 1, start_time=10)
+            #>>> data = problem.compute_task_durations_with_calendar_preemption()
+            #>>> duration_array, interval_dict = data.durations[(task_1, 1)]
+            #>>> actual_duration = data.get_duration_for_start_time(task_1, 1, start_time=10)
 
         """
         if horizon is None:
@@ -949,10 +953,8 @@ class GenericSchedulingProblem(
                                     penalty += max(0, t1 + offset - t2)
                                 else:
                                     penalty += max(0, t2 - (t1 + offset))
-
             case _:
                 raise NotImplementedError()
-
         return penalty
 
     def get_mode_cost(self, task: Task, mode: int) -> int:
@@ -991,6 +993,7 @@ class GenericSchedulingSolution(
     SkillSolution[
         Task, UnaryResource, Skill, NonSkillCumulativeResource, UnaryResource
     ],
+    # CalendarPreemptiveSolution[Task, NonSkillCumulativeResource, UnaryResource],
     NonRenewableResourceSolution[Task, NonRenewableResource],
     PrecedenceSchedulingSolution[Task],
     TimelagSolution[Task],

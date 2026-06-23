@@ -6,6 +6,12 @@
 
 from typing import Optional
 
+from discrete_optimization.rcpsp.problem_preemptive import (
+    PreemptiveRcpspProblem,
+    PreemptiveRcpspSolution,
+    get_rcpsp_problemp_preemptive,
+)
+
 from discrete_optimization.generic_tools.transformation.problem_transformation import (
     ProblemTransformation,
 )
@@ -14,11 +20,6 @@ from discrete_optimization.generic_tools.transformation.transformation_metadata 
     exact_transformation,
 )
 from discrete_optimization.rcpsp.problem import RcpspProblem
-from discrete_optimization.rcpsp.problem_preemptive import (
-    PreemptiveRcpspProblem,
-    PreemptiveRcpspSolution,
-    get_rcpsp_problemp_preemptive,
-)
 from discrete_optimization.rcpsp.solution import RcpspSolution
 
 

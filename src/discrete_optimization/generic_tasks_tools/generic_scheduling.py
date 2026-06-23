@@ -4,8 +4,10 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from typing import Generic, Optional
+from dataclasses import dataclass
+from typing import Generic, Hashable, Optional, Union
 
+import numpy as np
 import wrapt
 
 from discrete_optimization.generic_tasks_tools.allocation import (
@@ -44,9 +46,7 @@ from discrete_optimization.generic_tasks_tools.timewindow import (
     TimewindowProblem,
     TimewindowSolution,
 )
-from typing import Union, Hashable
-from dataclasses import dataclass
-import numpy as np
+
 CumulativeResource = Skill | NonSkillCumulativeResource
 Resource = CumulativeResource | UnaryResource
 AnyResource = NonRenewableResource | Resource

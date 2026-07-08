@@ -55,6 +55,7 @@ dependencies = [
     "setuptools",
     "pandas>=2, !=3.0.4",
     "wrapt>=2.2.1",
+    "pytest<=9.0.1",
 ]
 dynamic = ["version"]
 
@@ -114,7 +115,7 @@ doc = [
 ]
 test = [
     "nbmake>=1.5.5",
-    "pytest>=8.4.2",
+    "pytest<=9.0.1",
     "pytest-cases>=3.9.1",
     "pytest-cov>=7.0.0",
     "scikit-learn>=1.6.1",

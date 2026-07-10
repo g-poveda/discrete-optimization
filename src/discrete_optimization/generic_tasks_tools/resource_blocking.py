@@ -32,9 +32,6 @@ from discrete_optimization.generic_tasks_tools.cumulative_resource import (
 )
 from discrete_optimization.generic_tasks_tools.entities import SchedulingEntity
 from discrete_optimization.generic_tasks_tools.enums import StartOrEnd
-from discrete_optimization.generic_tasks_tools.multimode import (
-    MultimodeSolution,
-)
 from discrete_optimization.generic_tasks_tools.scheduling import (
     SchedulingSolution,
 )
@@ -169,7 +166,7 @@ class ResourceBlockingProblem(
 
 
 class ResourceBlockingSolution(
-    MultimodeSolution[Task], Generic[Task, CumulativeResource, OtherCalendarResource]
+    SchedulingSolution[Task], Generic[Task, CumulativeResource, OtherCalendarResource]
 ):
     """
     Mixin for solutions to problems with resource blocking constraints.

@@ -42,17 +42,6 @@ class SchedulingEntity(ABC):
     - "Group of tasks must finish before another task starts" (precedence)
     - "Resource blocked from end of group to start of task" (resource blocking)
     - "If task is in mode 2, then block resource X" (conditional blocking)
-
-    Examples:
-        >>> from discrete_optimization.generic_tasks_tools.entities import TaskEntity, GroupEntity
-        >>> # Individual task
-        >>> task_ent = TaskEntity("paint")
-        >>> # Group of tasks
-        >>> group_ent = GroupEntity(frozenset({"prep", "paint", "dry"}), "painting_job")
-        >>> # Query in solution
-        >>> start = task_ent.get_start_time(solution)
-        >>> group_start = group_ent.get_start_time(solution)  # min of task starts
-
     """
 
     @abstractmethod
@@ -159,18 +148,6 @@ class TaskEntity(SchedulingEntity):
 
     Attributes:
         task: The task this entity represents
-
-    Examples:
-        >>> entity = TaskEntity(task="assembly")
-        >>> entity.get_start_time(solution)
-        10
-        >>> entity.get_end_time(solution)
-        25
-        >>> entity.get_tasks()
-        frozenset({'assembly'})
-        >>> entity.is_active(solution)
-        True
-
     """
 
     task: Task
@@ -208,19 +185,6 @@ class GroupEntity(SchedulingEntity):
     Attributes:
         tasks: Set of tasks in the group (must be non-empty)
         group_id: Optional identifier for the group (for display/debugging)
-
-    Examples:
-        >>> entity = GroupEntity(
-        ...     tasks=frozenset({"prep", "main", "cleanup"}),
-        ...     group_id="maintenance_job_1"
-        ... )
-        >>> entity.get_start_time(solution)  # min(start of prep, main, cleanup)
-        5
-        >>> entity.get_end_time(solution)    # max(end of prep, main, cleanup)
-        45
-        >>> entity.get_tasks()
-        frozenset({'prep', 'main', 'cleanup'})
-
     """
 
     tasks: frozenset[Task]
@@ -265,17 +229,6 @@ class TaskModeEntity(SchedulingEntity):
     Attributes:
         task: The task
         mode: The specific mode (integer)
-
-    Examples:
-        >>> entity = TaskModeEntity(task="painting", mode=2)
-        >>> entity.is_active(solution)  # True only if painting is in mode 2
-        False  # (if painting is in mode 1)
-        >>> # If active:
-        >>> entity.get_start_time(solution)
-        10
-        >>> entity.get_tasks()
-        frozenset({'painting'})
-
     Raises:
         ValueError: When calling get_start_time() or get_end_time() on an inactive entity
 

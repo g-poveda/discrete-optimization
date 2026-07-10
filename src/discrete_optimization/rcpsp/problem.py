@@ -30,8 +30,12 @@ from discrete_optimization.generic_tasks_tools.generic_scheduling import (
     GenericSchedulingProblem,
 )
 from discrete_optimization.generic_tasks_tools.no_overlap import (
-    NoOverlapProblem,
     WithoutNoOverlapProblem,
+)
+from discrete_optimization.generic_tasks_tools.resource_blocking import (
+    FlexibleGapBlockingConstraint,
+    ResourceBlockingProblem,
+    SpanBlockingConstraint,
 )
 from discrete_optimization.generic_tasks_tools.skill import NoSkill, WithoutSkillProblem
 from discrete_optimization.generic_tools.do_problem import (
@@ -81,8 +85,8 @@ class RcpspProblem(
     WithoutSkillProblem[
         Task, NoUnaryResource, NonSkillCumulativeResource, NoUnaryResource
     ],
-    NoOverlapProblem[Task],
     WithoutAllocationProblem[Task],
+    ResourceBlockingProblem[Task, NonSkillCumulativeResource, NonRenewableResource],
 ):
     """Main class for RCPSP problem.
 
@@ -700,6 +704,22 @@ class RcpspProblem(
             objective_handling=objective_handling,
             dict_objective_to_doc=dict_objective,
         )
+
+    def get_flexible_gap_blocking_constraints(
+        self,
+    ) -> list[FlexibleGapBlockingConstraint]:
+        """Return flexible gap blocking constraints.
+
+        Base RCPSP has no blocking constraints. Override in subclasses to add them.
+        """
+        return []
+
+    def get_span_blocking_constraints(self) -> list[SpanBlockingConstraint]:
+        """Return span blocking constraints.
+
+        Base RCPSP has no blocking constraints. Override in subclasses to add them.
+        """
+        return []
 
     def compute_resource_consumption(
         self, rcpsp_sol: RcpspSolution

@@ -33,6 +33,9 @@ from discrete_optimization.generic_tasks_tools.generic_scheduling import (
 from discrete_optimization.generic_tasks_tools.no_overlap import (
     WithoutNoOverlapProblem,
 )
+from discrete_optimization.generic_tasks_tools.resource_blocking import (
+    WithoutResourceBlockingProblem,
+)
 from discrete_optimization.generic_tools.do_problem import (
     ModeOptim,
     ObjectiveDoc,
@@ -2010,6 +2013,7 @@ class MultiskillRcpspProblem(
         Task, UnaryResource, Skill, NonSkillCumulativeResource, NonRenewableResource
     ],
     WithoutNoOverlapProblem[Task],
+    WithoutResourceBlockingProblem[Task, NonSkillCumulativeResource, UnaryResource],
 ):
     sgs: ScheduleGenerationScheme
     skills_set: set[str]

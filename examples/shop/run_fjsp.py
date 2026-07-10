@@ -14,7 +14,7 @@ logging.basicConfig(level=logging.DEBUG)
 
 
 def run_cpsat_jsp():
-    file_path = get_data_available()[4]
+    file_path = get_data_available()[16]
     # file_path = [f for f in get_data_available() if "abz6" in f][0]
     problem = parse_file(file_path)
     print("File path ", file_path)
@@ -29,6 +29,7 @@ def run_cpsat_jsp():
     )
     solver = CpSatFjspSolver(problem=problem)
     p = ParametersCp.default_cpsat()
+    solver.init_model(duplicate_temporal_var=True, add_cumulative_constraint=True)
     p.nb_process = 10
     res = solver.solve(
         parameters_cp=p,
@@ -42,6 +43,7 @@ def run_cpsat_jsp():
     sol = res.get_best_solution_fit()[0]
     assert problem.satisfy(sol)
     print(problem.evaluate(sol))
+    print(solver.status_solver)
 
 
 def run_cpsat_jsp_warm_start():
@@ -75,4 +77,4 @@ def run_cpsat_jsp_warm_start():
 
 
 if __name__ == "__main__":
-    run_cpsat_jsp_warm_start()
+    run_cpsat_jsp()

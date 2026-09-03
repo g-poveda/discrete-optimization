@@ -30,17 +30,20 @@ logging.basicConfig(level=logging.INFO)
 
 
 def run_cpsat():
-    instance = [p for p in get_data_available() if "instance_191.json" in p][0]
+    instance = [p for p in get_data_available() if "instance_42.json" in p][0]
     problem = parse_json_to_problem(instance)
-    print(problem.number_tasks)
     solver = CPSatAutoAllocSchedulingSolver(problem)
+    p = ParametersCp.default_cpsat()
+    p.nb_process = 10
     solver.init_model(
-        objectives=[ObjectivesEnum.NB_TEAMS], adding_redundant_cumulative=True
+        avoid_interval_optional=False,
+        objectives=[ObjectivesEnum.NB_TEAMS],
+        adding_redundant_cumulative=True,
     )
     res = solver.solve(
         callbacks=[ObjectiveGapStopper(0, 0), BasicStatsCallback()],
-        parameters_cp=ParametersCp.default_cpsat(),
-        time_limit=10,
+        parameters_cp=p,
+        time_limit=100,
         ortools_cpsat_solver_kwargs={"log_search_progress": True},
     )
     sol = res[-1][0]

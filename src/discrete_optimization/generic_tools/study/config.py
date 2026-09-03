@@ -75,7 +75,8 @@ class ConfigStore:
             del config[NAME]
         # hashable version of the config
         hashable_config = convert_config_dict2hashable(config)
-
+        print(hashable_config)
+        hashable_config = str(hashable_config)
         # get a name and check that previous similar config share the name (or had not already one defined)
         if (
             hashable_config in self.map_config2name
@@ -122,6 +123,7 @@ class ConfigStore:
         if NAME in config:
             del config[NAME]
         hashable_config = convert_config_dict2hashable(config)
+        hashable_config = str(hashable_config)
         if hashable_config not in self.map_config2name:
             raise RuntimeError(
                 "Be sure to add all configs to the store before extracting names. "

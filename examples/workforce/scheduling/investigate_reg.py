@@ -157,7 +157,7 @@ def run_multiobj():
         solver = CPSatAllocSchedulingSolver(problem=problem)
         solver.init_model([ObjectivesEnum.NB_TEAMS, ObjectivesEnum.DISPERSION])
         res = solver.solve(
-            time_limit=2,
+            time_limit=30,
             parameters_cp=p,
             ortools_cpsat_solver_kwargs={"log_search_progress": True},
         )
@@ -167,12 +167,19 @@ def run_multiobj():
         solver_auto = CPSatAutoAllocSchedulingSolver(problem=problem)
         solver_auto.init_model(
             [ObjectivesEnum.NB_TEAMS, ObjectivesEnum.DISPERSION],
+            tasks_bounds={
+                t: (
+                    int(problem.get_lb_start_window(t)),
+                    int(problem.get_lb_end_window(t)),
+                    int(problem.get_ub_start_window(t)),
+                    int(problem.get_ub_end_window(t)),
+                )
+                for t in problem.tasks_list
+            },
             avoid_interval_optional=False,
         )
         res_auto = solver_auto.solve(
             time_limit=30,
-            objectives=[ObjectivesEnum.NB_TEAMS, ObjectivesEnum.DISPERSION],
-            avoid_interval_optional=True,
             parameters_cp=p,
             ortools_cpsat_solver_kwargs={"log_search_progress": True},
         )

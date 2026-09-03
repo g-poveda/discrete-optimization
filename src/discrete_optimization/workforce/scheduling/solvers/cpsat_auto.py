@@ -138,8 +138,8 @@ class CPSatAutoAllocSchedulingSolver(
 
     problem: AllocSchedulingProblem
     variables: dict[str, dict[Any, Any]]
-
     at_most_one_unary_resource_per_task = True
+    add_cumulative_approximation_nb_unary_resource_used = False
     objective = Objective.NB_UNARY_RESOURCES_USED
 
     @staticmethod

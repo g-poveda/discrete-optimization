@@ -436,7 +436,13 @@ class CPSatAutoAllocSchedulingSolver(
             dict_fairness = model_fairness(
                 used_team=self.variables["used"],
                 allocation_variables=[
-                    self.allocation_is_present[task] for task in self.problem.tasks_list
+                    {
+                        self.problem.teams_to_index[team]: self.allocation_is_present[
+                            task
+                        ][team]
+                        for team in self.allocation_is_present[task]
+                    }
+                    for task in self.problem.tasks_list
                 ],
                 value_per_task=dur,
                 modelisation_dispersion=modelisation_dispersion,
@@ -456,7 +462,13 @@ class CPSatAutoAllocSchedulingSolver(
             variables = cumulate_value_per_teams_version_2(
                 used_team=self.variables["used"],
                 allocation_variables=[
-                    self.allocation_is_present[task] for task in self.problem.tasks_list
+                    {
+                        self.problem.teams_to_index[team]: self.allocation_is_present[
+                            task
+                        ][team]
+                        for team in self.allocation_is_present[task]
+                    }
+                    for task in self.problem.tasks_list
                 ],
                 value_per_task=dur,
                 cp_model=self.cp_model,

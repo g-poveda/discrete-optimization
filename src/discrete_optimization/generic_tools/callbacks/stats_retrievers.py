@@ -1,6 +1,7 @@
 #  Copyright (c) 2024 AIRBUS and its affiliates.
 #  This source code is licensed under the MIT license found in the
 #  LICENSE file in the root directory of this source tree.
+from abc import ABC, abstractmethod
 from time import perf_counter
 from typing import Optional
 
@@ -14,7 +15,12 @@ from discrete_optimization.generic_tools.result_storage.result_storage import (
 )
 
 
-class BasicStatsCallback(Callback):
+class StatsCallback(Callback, ABC):
+    @abstractmethod
+    def get_df_metrics(self) -> pd.DataFrame: ...
+
+
+class BasicStatsCallback(StatsCallback):
     """
     This callback is storing the computation time at different step of the solving process,
     this can help to display the evolution of the best solution through time, and compare easily different solvers.
@@ -52,6 +58,47 @@ class BasicStatsCallback(Callback):
         df = pd.DataFrame(
             [{k: v for k, v in st.items() if k in column_names} for st in self.stats]
         ).set_index(self.time_column)
+        df.columns.name = "metric"
+        return df
+
+
+class StatsWithKpisCallback(StatsCallback):
+    def __init__(self):
+        self.starting_time: int = None
+        self.end_time: int = None
+        self.stats: list[dict] = []
+
+    def on_step_end(
+        self, step: int, res: ResultStorage, solver: SolverDO
+    ) -> Optional[bool]:
+        t = perf_counter()
+        last_sol = res[-1][0]
+        last_kpis = last_sol.problem.evaluate(last_sol)
+        self.stats.append(
+            {"fit": res[-1][1], "time": t - self.starting_time} | last_kpis
+        )
+
+    def on_solve_start(self, solver: SolverDO):
+        self.starting_time = perf_counter()
+
+    def on_solve_end(self, res: ResultStorage, solver: SolverDO):
+        """Called at the end of solve.
+        Args:
+        res: current result storage
+        solver: solvers using the callback
+        """
+        self.on_step_end(None, res, solver)
+
+    def get_df_metrics(self) -> pd.DataFrame:
+        """Construct a dataframe indexed by time of the recorded metrics (fitness, bounds...)."""
+        if len(self.stats) > 0:
+            metrics_column = [k for k in self.stats[-1].keys() if k != "time"]
+        else:
+            metrics_column = ["fit"]
+        column_names = ["time"] + metrics_column
+        df = pd.DataFrame(
+            [{k: v for k, v in st.items() if k in column_names} for st in self.stats]
+        ).set_index("time")
         df.columns.name = "metric"
         return df
 

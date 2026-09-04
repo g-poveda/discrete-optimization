@@ -12,6 +12,7 @@ from discrete_optimization.generic_tools.callbacks.loggers import (
 )
 from discrete_optimization.generic_tools.callbacks.stats_retrievers import (
     StatsWithBoundsCallback,
+    StatsWithKpisCallback,
 )
 from discrete_optimization.generic_tools.cp_tools import ParametersCp
 from discrete_optimization.generic_tools.do_solver import StatusSolver
@@ -20,6 +21,9 @@ from discrete_optimization.generic_tools.study import (
     Study,
 )
 from discrete_optimization.generic_tools.study.database import is_empty_metrics
+from discrete_optimization.workforce.commons.fairness_modeling import (
+    ModelisationDispersion,
+)
 from discrete_optimization.workforce.scheduling.parser import (
     get_data_available,
     parse_json_to_problem,
@@ -147,13 +151,36 @@ def run_dashboard():
 
 
 def run_multiobj():
-    instances = ["instance_170.json", "instance_252.json"]
+    instances = [  # "instance_170.json",
+        "instance_252.json"
+    ]
     p = ParametersCp.default_cpsat()
     p.nb_process = 1
     sols = []
     for instance in instances:
         file = [f for f in get_data_available() if instance in f][0]
         problem = parse_json_to_problem(file)
+
+        solver_auto = CPSatAutoAllocSchedulingSolver(problem=problem)
+        solver_auto.init_model(
+            [ObjectivesEnum.NB_TEAMS, ObjectivesEnum.DISPERSION],
+            avoid_interval_optional=False,
+            tasks_bounds={
+                t: (
+                    problem.get_lb_start_window(t),
+                    problem.get_lb_end_window(t),
+                    problem.get_ub_start_window(t),
+                    problem.get_ub_end_window(t),
+                )
+                for t in problem.tasks_list
+            },
+        )
+        res_auto = solver_auto.solve(
+            time_limit=20,
+            parameters_cp=p,
+            ortools_cpsat_solver_kwargs={"log_search_progress": True},
+        )
+
         solver = CPSatAllocSchedulingSolver(problem=problem)
         solver.init_model([ObjectivesEnum.NB_TEAMS, ObjectivesEnum.DISPERSION])
         res = solver.solve(
@@ -163,26 +190,6 @@ def run_multiobj():
         )
         sol, _ = res[-1]
         print(problem.evaluate(sol))
-
-        solver_auto = CPSatAutoAllocSchedulingSolver(problem=problem)
-        solver_auto.init_model(
-            [ObjectivesEnum.NB_TEAMS, ObjectivesEnum.DISPERSION],
-            tasks_bounds={
-                t: (
-                    int(problem.get_lb_start_window(t)),
-                    int(problem.get_lb_end_window(t)),
-                    int(problem.get_ub_start_window(t)),
-                    int(problem.get_ub_end_window(t)),
-                )
-                for t in problem.tasks_list
-            },
-            avoid_interval_optional=False,
-        )
-        res_auto = solver_auto.solve(
-            time_limit=30,
-            parameters_cp=p,
-            ortools_cpsat_solver_kwargs={"log_search_progress": True},
-        )
         sol_auto, _ = res_auto[-1]
         print(problem.evaluate(sol))
         print(problem.evaluate(sol_auto))
@@ -199,46 +206,66 @@ def run_multiobj_study():
         "instance_170.json",
         "instance_252.json",
     ]
+    instances = [os.path.basename(p) for p in get_data_available()]
 
     def load_instance(instance) -> AllocSchedulingProblem:
         file = [f for f in get_data_available() if instance in f][0]
         return parse_json_to_problem(file)
 
     p = ParametersCp.default_cpsat()
-    p.nb_process = 1
+    p.nb_process = 10
     p_mono_worker = ParametersCp.default_cpsat()
     p_mono_worker.nb_process = 1
+    time_limit = 20
     solver_configs = dict()
-    solver_configs["original-cpsat"] = SolverConfig(
-        cls=CPSatAllocSchedulingSolver,
-        kwargs={
-            "parameters_cp": p,
-            "objectives": [ObjectivesEnum.NB_TEAMS, ObjectivesEnum.DISPERSION],
-            # "adding_redundant_cumulative": True,
-            "time_limit": 20,
-        },
-    )
-
-    solver_configs["cpsat-auto-no-optional"] = SolverConfig(
-        cls=CPSatAutoAllocSchedulingSolver,
-        kwargs={
-            "parameters_cp": p,
-            "avoid_interval_optional": True,
-            "objectives": [ObjectivesEnum.NB_TEAMS, ObjectivesEnum.DISPERSION],
-            # "adding_redundant_cumulative": True,
-            "time_limit": 20,
-        },
-    )
-    solver_configs["cpsat-auto-optional"] = SolverConfig(
-        cls=CPSatAutoAllocSchedulingSolver,
-        kwargs={
-            "parameters_cp": p,
-            "avoid_interval_optional": False,
-            "objectives": [ObjectivesEnum.NB_TEAMS, ObjectivesEnum.DISPERSION],
-            # "adding_redundant_cumulative": True,
-            "time_limit": 20,
-        },
-    )
+    for p1 in [p, p_mono_worker]:
+        i = 0
+        for modeling in [
+            ModelisationDispersion.EXACT_MODELING_DUPLICATED_VARS,
+            ModelisationDispersion.EXACT_MODELING_WITH_IMPLICATION,
+        ]:
+            solver_configs["original-cpsat-" + str(i) + "-" + str(p1.nb_process)] = (
+                SolverConfig(
+                    cls=CPSatAllocSchedulingSolver,
+                    kwargs={
+                        "parameters_cp": p1,
+                        "modelisation_dispersion": modeling,
+                        "objectives": [
+                            ObjectivesEnum.NB_TEAMS,
+                            ObjectivesEnum.DISPERSION,
+                        ],
+                        # "adding_redundant_cumulative": True,
+                        "time_limit": time_limit,
+                    },
+                )
+            )
+            solver_configs[
+                "cpsat-auto-no-optional-" + str(i) + "-" + str(p1.nb_process)
+            ] = SolverConfig(
+                cls=CPSatAutoAllocSchedulingSolver,
+                kwargs={
+                    "parameters_cp": p1,
+                    "modelisation_dispersion": modeling,
+                    "avoid_interval_optional": True,
+                    "objectives": [ObjectivesEnum.NB_TEAMS, ObjectivesEnum.DISPERSION],
+                    # "adding_redundant_cumulative": True,
+                    "time_limit": time_limit,
+                },
+            )
+            solver_configs[
+                "cpsat-auto-optional-" + str(i) + "-" + str(p1.nb_process)
+            ] = SolverConfig(
+                cls=CPSatAutoAllocSchedulingSolver,
+                kwargs={
+                    "parameters_cp": p1,
+                    "modelisation_dispersion": modeling,
+                    "avoid_interval_optional": False,
+                    "objectives": [ObjectivesEnum.NB_TEAMS, ObjectivesEnum.DISPERSION],
+                    # "adding_redundant_cumulative": True,
+                    "time_limit": time_limit,
+                },
+            )
+            i += 1
 
     study = Study(
         name="cpsat-vs-auto-multiobj",
@@ -250,7 +277,7 @@ def run_multiobj_study():
     )
     for problem, solver, solver_kwargs in study:
         try:
-            stats_cb = StatsWithBoundsCallback()
+            stats_cb = StatsWithKpisCallback()
             result_store = solver.solve(
                 callbacks=[
                     stats_cb,
@@ -289,4 +316,4 @@ def run_multiobj_study():
 
 
 if __name__ == "__main__":
-    run_multiobj()
+    run_multiobj_study()

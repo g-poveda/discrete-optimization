@@ -113,7 +113,7 @@ class CPSatAutoAllocSchedulingSolver(
         EnumHyperparameter(
             name="modelisation_dispersion",
             enum=ModelisationDispersion,
-            default=ModelisationDispersion.EXACT_MODELING_WITH_IMPLICATION,
+            default=ModelisationDispersion.EXACT_MODELING_DUPLICATED_VARS,
         ),
         CategoricalHyperparameter(
             name="adding_redundant_cumulative", default=False, choices=[False, True]
@@ -377,7 +377,6 @@ class CPSatAutoAllocSchedulingSolver(
             self.bound_teams = None
             self.time_bounds = 0
             self.status_bound = None
-
         self.add_objective_functions_on_cumul(objectives=objectives, **kwargs)
         if additional_constraints is not None:
             self.set_additional_constraints(

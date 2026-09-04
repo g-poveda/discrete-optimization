@@ -376,11 +376,11 @@ class CPSatAllocSchedulingSolver(
                     name=f"interval_{i}_{index_team}",
                 )
                 key_per_team[index_team].append((i, index_team))
-            if not optional_activities:
-                self.cp_model.AddExactlyOne(
-                    [is_present_var[i][x] for x in is_present_var[i]]
-                )
-                # else managed later by self.create_actually_done_variables()
+            # if not optional_activities:
+            #    self.cp_model.AddExactlyOne(
+            #        [is_present_var[i][x] for x in is_present_var[i]]
+            #    )
+            # else managed later by self.create_actually_done_variables()
 
         # At most or exactly one team per activity
         self.add_unary_resources_per_task_constraints()

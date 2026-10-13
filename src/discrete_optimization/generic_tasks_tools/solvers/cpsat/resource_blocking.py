@@ -12,6 +12,7 @@ from discrete_optimization.generic_tasks_tools.entities import (
     ConstantDurationEntity,
     GroupEntity,
     ModuloTaskEntity,
+    ModuloTwoEntity,
     MultiplyTaskEntity,
     SchedulingEntity,
     TaskEntity,
@@ -165,24 +166,44 @@ class ResourceBlockingCpSatSolver(
             ube = self.problem.get_task_start_or_end_upper_bound(
                 entity.task, StartOrEnd.END
             )
-            match entity.start_or_end:
+            if entity.start_or_end == StartOrEnd.START:
+                min_d = max(0, lbe - ubs)
+                max_d = max(0, ube - lbs)
+                return (
+                    lbs * entity.multiply_factor,
+                    ubs * entity.multiply_factor,
+                    lbs * entity.multiply_factor + min_d,
+                    ubs * entity.multiply_factor + max_d,
+                )
+            else:
+                min_d = max(0, lbe - ubs)
+                max_d = max(0, ube - lbs)
+                return (
+                    lbe * entity.multiply_factor - max_d,
+                    ube * entity.multiply_factor - min_d,
+                    lbe * entity.multiply_factor,
+                    ube * entity.multiply_factor,
+                )
+        elif isinstance(entity, ModuloTwoEntity):
+            lb_start, ub_start, lb_end, ub_end = self.get_lb_ub_entity(entity.entity)
+            lb_start_mod, ub_start_mod, lb_end_mod, ub_end_mod = self.get_lb_ub_entity(
+                entity.modulo_entity
+            )
+            max_dur = ub_end - lb_start
+            match entity.modulo_value_start_or_end:
                 case StartOrEnd.START:
-                    min_d = max(0, lbe - ubs)
-                    max_d = max(0, ube - lbs)
                     return (
-                        lbs * entity.multiply_factor,
-                        ubs * entity.multiply_factor,
-                        lbs * entity.multiply_factor + min_d,
-                        ubs * entity.multiply_factor + max_d,
+                        0,
+                        min(ub_start, ub_start_mod - 1),
+                        0,
+                        min(ub_start, ub_start_mod - 1) + max_dur,
                     )
                 case StartOrEnd.END:
-                    min_d = max(0, lbe - ubs)
-                    max_d = max(0, ube - lbs)
                     return (
-                        lbe * entity.multiply_factor - max_d,
-                        ube * entity.multiply_factor - min_d,
-                        lbe * entity.multiply_factor,
-                        ube * entity.multiply_factor,
+                        0,
+                        min(ub_start, ub_end_mod - 1),
+                        0,
+                        min(ub_start, ub_end_mod - 1) + max_dur,
                     )
         else:
             raise NotImplementedError
@@ -227,6 +248,8 @@ class ResourceBlockingCpSatSolver(
                 self.create_modulo_entity_interval(entity)
             case MultiplyTaskEntity():
                 self.create_multiply_entity_interval(entity)
+            case ModuloTwoEntity():
+                self.create_modulo_two_entity_interval(entity)
             case _:
                 raise NotImplementedError()
 
@@ -442,6 +465,46 @@ class ResourceBlockingCpSatSolver(
                 name=f"interval_{entity.entity_id}",
             )
 
+    def create_modulo_two_entity_interval(self, entity: ModuloTwoEntity[Task]):
+        self.define_start_and_end_var_and_constraint(entity.entity)
+        self.define_start_and_end_var_and_constraint(entity.modulo_entity)
+        lb_start, ub_start, lb_end, ub_end = self.get_lb_ub_entity(entity)
+        self._starts_entity[entity] = self.cp_model.NewIntVar(
+            lb=lb_start, ub=ub_start, name=f"start_{entity.entity_id}"
+        )
+        self._ends_entity[entity] = self.cp_model.NewIntVar(
+            lb=lb_end, ub=ub_end, name=f"end_{entity.entity_id}"
+        )
+        self._durations_entity[entity] = self._durations_entity[entity.entity]
+        if entity.modulo_value_start_or_end == StartOrEnd.START:
+            self.cp_model.add_modulo_equality(
+                self._starts_entity[entity],
+                self._starts_entity[entity.entity],
+                mod=self._starts_entity[entity.modulo_entity],
+            )
+        else:
+            self.cp_model.add_modulo_equality(
+                self._starts_entity[entity],
+                self._starts_entity[entity.entity],
+                mod=self._ends_entity[entity.modulo_entity],
+            )
+        is_present = self._get_entity_is_active_var(entity)
+        if isinstance(is_present, int) and is_present == 1:
+            self._intervals_entity[entity] = self.cp_model.NewIntervalVar(
+                start=self._starts_entity[entity],
+                end=self._ends_entity[entity],
+                size=self._durations_entity[entity],
+                name=f"interval_{entity.entity_id}",
+            )
+        else:
+            self._intervals_entity[entity] = self.cp_model.new_optional_interval_var(
+                start=self._starts_entity[entity],
+                end=self._ends_entity[entity],
+                size=self._durations_entity[entity],
+                is_present=is_present,
+                name=f"interval_{entity.entity_id}",
+            )
+
     def create_entity_intervals(self) -> None:
         self._starts_entity = {}
         self._ends_entity = {}
@@ -587,6 +650,10 @@ class ResourceBlockingCpSatSolver(
                         )
                     else:
                         self._entity_active[entity] = 1
+                case ModuloTwoEntity():
+                    self._entity_active[entity] = self._get_entity_is_active_var(
+                        entity.entity
+                    )
                 case _:
                     raise NotImplementedError()
         return self._entity_active[entity]

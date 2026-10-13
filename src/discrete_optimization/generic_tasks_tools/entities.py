@@ -545,3 +545,62 @@ class ModuloTaskEntity(SchedulingEntity[Task]):
     @property
     def entity_id(self) -> Hashable:
         return "task-modulo", self.task, self.modulo_value
+
+
+@dataclass(frozen=True)
+class ModuloTwoEntity(SchedulingEntity[Task]):
+    entity: SchedulingEntity[Task]
+    modulo_entity: SchedulingEntity[Task]
+    modulo_value_start_or_end: StartOrEnd = StartOrEnd.START
+
+    @optional_override_implem
+    def unfold_entities(self):
+        yield self.entity
+        self.entity.unfold_entities()
+        yield self.modulo_entity
+        self.modulo_entity.unfold_entities()
+
+    def get_tasks(self) -> frozenset[Task]:
+        return self.entity.get_tasks()
+
+    def is_active(self, solution: SchedulingSolution) -> bool:
+        return self.entity.is_active(solution)
+
+    def get_start_time(self, solution: SchedulingSolution) -> int | AbsentValue:
+        modulo = self.get_modulo_value(solution)
+        if modulo == AbsentValue.ABSENT:
+            return self.entity.get_start_time(solution)
+        else:
+            st = self.entity.get_start_time(solution)
+            if st == AbsentValue.ABSENT:
+                return st
+            else:
+                return st % modulo
+
+    def get_end_time(self, solution: SchedulingSolution) -> int | AbsentValue:
+        if self.entity.is_active(solution):
+            dur = self.entity.get_end_time(solution) - self.entity.get_start_time(
+                solution
+            )
+            st = self.get_start_time(solution)
+            if st != AbsentValue.ABSENT:
+                return st + dur
+        return AbsentValue.ABSENT
+
+    def get_modulo_value(self, solution: SchedulingSolution) -> int | AbsentValue:
+        modulo = None
+        match self.modulo_value_start_or_end:
+            case StartOrEnd.START:
+                modulo = self.modulo_entity.get_start_time(solution)
+            case StartOrEnd.END:
+                modulo = self.modulo_entity.get_end_time(solution)
+        return modulo
+
+    @property
+    def entity_id(self) -> Hashable:
+        return (
+            "entity-modulo",
+            self.entity.entity_id,
+            self.modulo_entity.entity_id,
+            self.modulo_value_start_or_end,
+        )

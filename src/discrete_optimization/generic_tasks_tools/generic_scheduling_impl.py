@@ -18,6 +18,7 @@ from discrete_optimization.generic_tasks_tools.calendar_resource import (
     convert_availability_intervals_to_calendar,
     convert_calendar_to_availability_intervals,
 )
+from discrete_optimization.generic_tasks_tools.entities import SchedulingEntity
 from discrete_optimization.generic_tasks_tools.enums import (
     AbsentValue,
     MinOrMax,
@@ -239,6 +240,40 @@ class GenericSchedulingImplProblem(
     linear_cstrs_presence_tasks: list[
         tuple[list[tuple[Task, int]], int | None, int | None]
     ] = field(default_factory=list)
+    """Entity constraints: precedence, time lags, time windows on any SchedulingEntity"""
+    entity_precedence_constraints: dict[
+        SchedulingEntity, Iterable[SchedulingEntity]
+    ] = field(default_factory=dict)
+    entity_start_to_start_min_time_lags: list[
+        tuple[SchedulingEntity, SchedulingEntity, int]
+    ] = field(default_factory=list)
+    entity_start_to_start_max_time_lags: list[
+        tuple[SchedulingEntity, SchedulingEntity, int]
+    ] = field(default_factory=list)
+    entity_end_to_start_min_time_lags: list[
+        tuple[SchedulingEntity, SchedulingEntity, int]
+    ] = field(default_factory=list)
+    entity_end_to_start_max_time_lags: list[
+        tuple[SchedulingEntity, SchedulingEntity, int]
+    ] = field(default_factory=list)
+    entity_end_to_end_min_time_lags: list[
+        tuple[SchedulingEntity, SchedulingEntity, int]
+    ] = field(default_factory=list)
+    entity_end_to_end_max_time_lags: list[
+        tuple[SchedulingEntity, SchedulingEntity, int]
+    ] = field(default_factory=list)
+    entity_start_to_end_min_time_lags: list[
+        tuple[SchedulingEntity, SchedulingEntity, int]
+    ] = field(default_factory=list)
+    entity_start_to_end_max_time_lags: list[
+        tuple[SchedulingEntity, SchedulingEntity, int]
+    ] = field(default_factory=list)
+    entity_time_window_bounds: dict[
+        tuple[SchedulingEntity, StartOrEnd], tuple[int | None, int | None]
+    ] = field(default_factory=dict)
+    """Batching: variable batch assignment with capacity, compatibility, setup constraints"""
+    batch_entities: list = field(default_factory=list)  # list[VariableBatchEntity]
+    task_to_batch_assignment: dict[Task, Hashable] = field(default_factory=dict)
 
     def __post_init__(self, objective: Objective | Iterable[tuple[Objective, int]]):
         if self.list_objective_computer is None:
@@ -490,6 +525,84 @@ class GenericSchedulingImplProblem(
 
     def get_same_unary_allocation(self) -> list[set[Task]]:
         return self.same_unary_allocation
+
+    # Entity constraints implementation
+    @optional_override_implem
+    def get_entity_precedence_constraints(
+        self,
+    ) -> dict[SchedulingEntity, Iterable[SchedulingEntity]]:
+        return self.entity_precedence_constraints
+
+    @optional_override_implem
+    def get_entity_start_to_start_min_time_lags(
+        self,
+    ) -> list[tuple[SchedulingEntity, SchedulingEntity, int]]:
+        return self.entity_start_to_start_min_time_lags
+
+    @optional_override_implem
+    def get_entity_start_to_start_max_time_lags(
+        self,
+    ) -> list[tuple[SchedulingEntity, SchedulingEntity, int]]:
+        return self.entity_start_to_start_max_time_lags
+
+    @optional_override_implem
+    def get_entity_end_to_start_min_time_lags(
+        self,
+    ) -> list[tuple[SchedulingEntity, SchedulingEntity, int]]:
+        return self.entity_end_to_start_min_time_lags
+
+    @optional_override_implem
+    def get_entity_end_to_start_max_time_lags(
+        self,
+    ) -> list[tuple[SchedulingEntity, SchedulingEntity, int]]:
+        return self.entity_end_to_start_max_time_lags
+
+    @optional_override_implem
+    def get_entity_end_to_end_min_time_lags(
+        self,
+    ) -> list[tuple[SchedulingEntity, SchedulingEntity, int]]:
+        return self.entity_end_to_end_min_time_lags
+
+    @optional_override_implem
+    def get_entity_end_to_end_max_time_lags(
+        self,
+    ) -> list[tuple[SchedulingEntity, SchedulingEntity, int]]:
+        return self.entity_end_to_end_max_time_lags
+
+    @optional_override_implem
+    def get_entity_start_to_end_min_time_lags(
+        self,
+    ) -> list[tuple[SchedulingEntity, SchedulingEntity, int]]:
+        return self.entity_start_to_end_min_time_lags
+
+    @optional_override_implem
+    def get_entity_start_to_end_max_time_lags(
+        self,
+    ) -> list[tuple[SchedulingEntity, SchedulingEntity, int]]:
+        return self.entity_start_to_end_max_time_lags
+
+    @optional_override_implem
+    def get_entity_time_window_lower_bound(
+        self, entity: SchedulingEntity, start_or_end: StartOrEnd
+    ) -> int | None:
+        bounds = self.entity_time_window_bounds.get((entity, start_or_end), None)
+        if bounds is None:
+            return None
+        return bounds[0]  # lower bound
+
+    @optional_override_implem
+    def get_entity_time_window_upper_bound(
+        self, entity: SchedulingEntity, start_or_end: StartOrEnd
+    ) -> int | None:
+        bounds = self.entity_time_window_bounds.get((entity, start_or_end), None)
+        if bounds is None:
+            return None
+        return bounds[1]  # upper bound
+
+    # Batching implementation
+    @optional_override_implem
+    def get_batch_entities(self):
+        return self.batch_entities
 
     @wrapt.lru_cache(maxsize=None)
     def get_resource_availabilities(
@@ -902,6 +1015,12 @@ class GenericSchedulingImplSolution(
         if task not in self.raw_sol.task_variables:
             return set()
         return set(self.raw_sol.task_variables[task].allocated)
+
+    # Batching solution implementation
+    @optional_override_implem
+    def get_task_batch_assignment(self, task: Task) -> Hashable | None:
+        """Get which batch a task is assigned to."""
+        return self.raw_sol.metadata.get(f"batch_assignment_{task}", None)
 
     @optional_override_implem
     def get_choice_of_resource_blocking(

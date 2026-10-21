@@ -6,6 +6,7 @@ from discrete_optimization.generic_tasks_tools.base import Task
 from discrete_optimization.generic_tasks_tools.entities import (
     CompositeEntity,
     ConstantDurationEntity,
+    DummyEntity,
     GroupEntity,
     ModuloTaskEntity,
     ModuloTwoEntity,
@@ -15,7 +16,7 @@ from discrete_optimization.generic_tasks_tools.entities import (
     TaskModeEntity,
     VariableBatchEntity,
 )
-from discrete_optimization.generic_tasks_tools.enums import StartOrEnd
+from discrete_optimization.generic_tasks_tools.enums import StartOrEnd, UndefinedData
 from discrete_optimization.generic_tasks_tools.generic_scheduling import (
     GenericSchedulingProblem,
 )
@@ -54,7 +55,7 @@ class EntityIntervalsMixin(BatchingCPSatSolver[Task], Generic[Task]):
     """
 
     problem: GenericSchedulingProblem
-    cp_model: Any  # CP model
+    # cp_model: Any  # CP model
 
     # Entity interval variables
     _starts_entity: dict[SchedulingEntity, IntVar]
@@ -97,6 +98,36 @@ class EntityIntervalsMixin(BatchingCPSatSolver[Task], Generic[Task]):
         self._durations_entity = {}
         self._intervals_entity = {}
         self._entity_active = {}
+
+    def get_entity_start_or_end_variable(
+        self, entity: SchedulingEntity, start_or_end: StartOrEnd
+    ) -> IntVar:
+        """Get start or end time variable for an entity.
+
+        Args:
+            entity: The scheduling entity
+            start_or_end: Whether to get start or end variable
+
+        Returns:
+            IntVar for entity's start or end time
+        """
+        if entity not in self._starts_entity:
+            self.define_start_and_end_var_and_constraint(entity)
+        if start_or_end == StartOrEnd.START:
+            return self._starts_entity[entity]
+        else:
+            return self._ends_entity[entity]
+
+    def get_entity_is_active_variable(self, entity: SchedulingEntity) -> IntVar | int:
+        """Get presence/active variable for an entity.
+
+        Args:
+            entity: The scheduling entity
+
+        Returns:
+            IntVar (BoolVar) if entity is optional, or int 1 if always active
+        """
+        return self._get_entity_is_active_var(entity)
 
     # =====================================================================
     # ENTITY INTERVAL CREATION METHODS
@@ -312,6 +343,8 @@ class EntityIntervalsMixin(BatchingCPSatSolver[Task], Generic[Task]):
                     )
                 case VariableBatchEntity():
                     self._entity_active[entity] = self.batch_used_vars[entity.batch_id]
+                case DummyEntity():
+                    self._entity_active[entity] = 1
                 case _:
                     raise NotImplementedError(
                         f"Entity type {type(entity)} not supported"
@@ -345,8 +378,17 @@ class EntityIntervalsMixin(BatchingCPSatSolver[Task], Generic[Task]):
                 self.create_modulo_two_entity_interval(entity)
             case VariableBatchEntity():
                 self.create_variable_batch_entity_interval(entity)
+            case DummyEntity():
+                self.create_dummy_entity_interval(entity)
             case _:
                 raise NotImplementedError(f"Entity type {type(entity)} not supported")
+
+    def create_dummy_entity_interval(self, entity: DummyEntity):
+        self._starts_entity[entity] = entity.start
+        self._ends_entity[entity] = entity.end
+        self._intervals_entity[entity] = self.cp_model.NewIntervalVar(
+            start=0, end=0, size=0, name=f"interval_{entity.entity_id}"
+        )
 
     def create_task_entity_interval(
         self, entity: TaskEntity[Task] | TaskModeEntity[Task]
@@ -687,11 +729,20 @@ class EntityIntervalsMixin(BatchingCPSatSolver[Task], Generic[Task]):
                     # If task assigned to batch: batch_start <= task_start
                     self.cp_model.Add(
                         self._starts_entity[entity]
-                        <= self.get_task_start_or_end_variable(task, StartOrEnd.START)
+                        == self.get_task_start_or_end_variable(task, StartOrEnd.START)
                     ).OnlyEnforceIf(task_assigned)
-
                     # If task assigned to batch: batch_end >= task_end
                     self.cp_model.Add(
                         self._ends_entity[entity]
                         >= self.get_task_start_or_end_variable(task, StartOrEnd.END)
                     ).OnlyEnforceIf(task_assigned)
+                    task_min_dur = self.problem.get_min_task_duration_in_batch(task)
+                    if task_min_dur != UndefinedData.UNDEFINED:
+                        self.cp_model.Add(
+                            self._durations_entity[entity] >= task_min_dur
+                        ).OnlyEnforceIf(task_assigned)
+                    task_max_dur = self.problem.get_max_task_duration_in_batch(task)
+                    if task_max_dur != UndefinedData.UNDEFINED:
+                        self.cp_model.Add(
+                            self._durations_entity[entity] <= task_max_dur
+                        ).OnlyEnforceIf(task_assigned)

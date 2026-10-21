@@ -25,7 +25,6 @@ from discrete_optimization.generic_tasks_tools.solvers.cpsat.entity import (
 
 class EntityConstraintsCpSatSolver(
     EntityIntervalsMixin[Task],
-    # BatchingCPSatSolver[Task],
 ):
     """CP-SAT solver mixin for entity-based constraints.
 

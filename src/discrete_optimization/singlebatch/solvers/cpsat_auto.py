@@ -22,12 +22,12 @@ class SingleBatchAutoCpSatSolver(GenericSchedulingAutoCpSatSolver):
         # Call parent to get standard task variables
         raw_sol = super().retrieve_tasks_variables(cpsolvercb)
 
-        # Extract batch assignments and add to metadata
+        # Extract batch assignments and add to TaskVariable
         for task in self.problem.tasks_list:
             if task in self.task_to_batch_vars:
                 for batch_id, var in self.task_to_batch_vars[task].items():
                     if cpsolvercb.Value(var) == 1:
-                        raw_sol.metadata[f"batch_assignment_{task}"] = batch_id
+                        raw_sol.task_variables[task].batch_assignment = batch_id
                         break
 
         # Extract batch entity start/end times
@@ -44,12 +44,12 @@ class SingleBatchAutoCpSatSolver(GenericSchedulingAutoCpSatSolver):
         """Convert task variables to BatchProcessingSolution."""
         from discrete_optimization.singlebatch.problem import BatchProcessingSolution
 
-        # Extract batch assignments from metadata
+        # Extract batch assignments from TaskVariable
         job_to_batch = []
         for task in self.problem.tasks_list:
-            batch_id = raw_sol.metadata.get(f"batch_assignment_{task}")
-            if batch_id is not None:
-                job_to_batch.append(batch_id)
+            task_var = raw_sol.task_variables.get(task)
+            if task_var is not None and task_var.batch_assignment is not None:
+                job_to_batch.append(task_var.batch_assignment)
             else:
                 # Fallback: assign to batch 0 if not found
                 job_to_batch.append(0)

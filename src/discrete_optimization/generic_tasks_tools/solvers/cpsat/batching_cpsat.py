@@ -8,7 +8,6 @@ Handles task assignment to batches with:
 - Task compatibility (which tasks can batch together)
 - Task attributes (batches inherit from tasks)
 - Batch duration bounds (min/max duration based on tasks)
-- Setup times/costs between batches
 
 Designed for problems like:
 - Single batch processing machine
@@ -37,7 +36,6 @@ logger = logging.getLogger(__name__)
 
 class BatchingCPSatSolver(
     SchedulingCpSatSolver[Task],
-    # EntityIntervalsMixin[Task],
     Generic[Task],
 ):
     """CP-SAT solver mixin for batching problems.

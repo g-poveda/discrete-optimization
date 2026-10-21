@@ -27,9 +27,6 @@ from discrete_optimization.generic_tasks_tools.skill import (
 from discrete_optimization.generic_tasks_tools.solvers.cpsat.alternative_subproblems import (
     AlternativeSubproblemCpSatSolver,
 )
-from discrete_optimization.generic_tasks_tools.solvers.cpsat.entity_constraints import (
-    EntityConstraintsCpSatSolver,
-)
 from discrete_optimization.generic_tasks_tools.solvers.cpsat.exclusions import (
     ExclusionCpSatSolver,
 )
@@ -42,6 +39,9 @@ from discrete_optimization.generic_tasks_tools.solvers.cpsat.non_renewable_resou
 from discrete_optimization.generic_tasks_tools.solvers.cpsat.precedence_scheduling import (
     PrecedenceSchedulingCpSatSolver,
 )
+from discrete_optimization.generic_tasks_tools.solvers.cpsat.routing import (
+    RoutingCpSatProblem,
+)
 from discrete_optimization.generic_tasks_tools.solvers.cpsat.skill import (
     SkillSchedulingCpSatSolver,
 )
@@ -51,7 +51,8 @@ from discrete_optimization.generic_tasks_tools.solvers.cpsat.timelag import (
 
 
 class GenericSchedulingCpSatSolver(
-    EntityConstraintsCpSatSolver[Task],
+    # EntityConstraintsCpSatSolver[Task],
+    RoutingCpSatProblem[Task],
     ExclusionCpSatSolver[Task, ExclusionResource],
     AlternativeSubproblemCpSatSolver[Task],
     NoOverlapCpSatSolver[Task],

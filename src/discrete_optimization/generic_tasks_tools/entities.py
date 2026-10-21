@@ -652,6 +652,29 @@ class VariableBatchEntity(SchedulingEntity[Task]):
 
 
 @dataclass(frozen=True)
+class DummyEntity(SchedulingEntity[Task]):
+    start: int
+    end: int
+    attribute: int  # to compute potential setupcost/time
+    id_entity: Hashable
+
+    def get_tasks(self) -> frozenset[Task]:
+        return frozenset()
+
+    def is_active(self, solution: SchedulingSolution) -> bool:
+        return True
+
+    def get_start_time(self, solution: SchedulingSolution) -> int | AbsentValue:
+        return self.start
+
+    def get_end_time(self, solution: SchedulingSolution) -> int | AbsentValue:
+        return self.end
+
+    def entity_id(self) -> Hashable:
+        return self.id_entity
+
+
+@dataclass(frozen=True)
 class ModuloTwoEntity(SchedulingEntity[Task]):
     entity: SchedulingEntity[Task]
     modulo_entity: SchedulingEntity[Task]

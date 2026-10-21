@@ -23,6 +23,7 @@ from discrete_optimization.generic_tasks_tools.base import (
     TasksProblem,
     TasksSolution,
 )
+from discrete_optimization.generic_tasks_tools.enums import UndefinedData
 from discrete_optimization.generic_tasks_tools.utils import optional_override
 
 if TYPE_CHECKING:
@@ -145,7 +146,6 @@ class BatchingProblem(TasksProblem[Task], Generic[Task]):
         """
         return []
 
-    @optional_override
     def get_candidate_tasks_for_batch(self, batch_id: Hashable) -> frozenset[Task]:
         """Get tasks that could potentially be assigned to this batch.
 
@@ -315,8 +315,8 @@ class BatchingProblem(TasksProblem[Task], Generic[Task]):
         """Determine batch attribute based on tasks assigned to it.
 
         Batch attribute is derived from tasks in the batch and affects:
-        - Setup time/cost when switching between batches
-        - Processing time/cost of the batch
+        - Setup time when switching between batches
+        - Processing time of the batch
         - Resource consumption
 
         Args:
@@ -377,58 +377,12 @@ class BatchingProblem(TasksProblem[Task], Generic[Task]):
         return None, None
 
     @optional_override
-    def get_setup_time(
-        self, from_batch_attr: Hashable | None, to_batch_attr: Hashable | None
-    ) -> int:
-        """Get setup time when transitioning between batch attributes.
-
-        Setup time is incurred when switching from one batch to another with
-        different attributes (e.g., changeover, cleaning, reconfiguration).
-
-        Args:
-            from_batch_attr: Attribute of previous batch (or None if first batch)
-            to_batch_attr: Attribute of next batch
-
-        Returns:
-            Setup time (non-negative integer)
-
-        Default: No setup time (0).
-
-        Example:
-            >>> # Oven: setup time matrix
-            >>> def get_setup_time(self, from_attr, to_attr):
-            ...     if from_attr is None:
-            ...         from_attr = self.initial_attribute[machine]
-            ...     return self.setup_times[from_attr][to_attr]
-        """
-        return 0
+    def get_min_task_duration_in_batch(self, task: Task) -> int:
+        return UndefinedData.UNDEFINED
 
     @optional_override
-    def get_setup_cost(
-        self, from_batch_attr: Hashable | None, to_batch_attr: Hashable | None
-    ) -> float:
-        """Get setup cost when transitioning between batch attributes.
-
-        Setup cost is incurred when switching from one batch to another with
-        different attributes. May be independent of or in addition to setup time.
-
-        Args:
-            from_batch_attr: Attribute of previous batch (or None if first batch)
-            to_batch_attr: Attribute of next batch
-
-        Returns:
-            Setup cost (non-negative float)
-
-        Default: No setup cost (0.0).
-
-        Example:
-            >>> # Oven: setup cost matrix
-            >>> def get_setup_cost(self, from_attr, to_attr):
-            ...     if from_attr is None:
-            ...         from_attr = self.initial_attribute[machine]
-            ...     return self.setup_costs[from_attr][to_attr]
-        """
-        return 0.0
+    def get_max_task_duration_in_batch(self, task: Task) -> int:
+        return UndefinedData.UNDEFINED
 
     @optional_override
     def must_be_batched(self, task: Task) -> bool:

@@ -971,8 +971,11 @@ class GenericSchedulingAutoCpSatSolver(
                 for se2 in [StartOrEnd.START, StartOrEnd.END]
                 for mm in [MinOrMax.MIN, MinOrMax.MAX]
             )
+            or len(self.problem.get_routing_entities()) > 0
+            or len(self.problem.get_ordered_routing_entities()) > 0
         ):
             self.init_entity_constraints()
+            self.create_routing_vars_and_constraints()
 
         # Define the entity variables for resource blocking constraint
         self.create_resource_blocking_constraints()

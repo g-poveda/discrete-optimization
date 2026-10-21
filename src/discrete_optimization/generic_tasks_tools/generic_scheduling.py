@@ -24,10 +24,6 @@ from discrete_optimization.generic_tasks_tools.batching import (
 from discrete_optimization.generic_tasks_tools.cumulative_resource_generic import (
     CumulativeResourceGenericProblem,
 )
-from discrete_optimization.generic_tasks_tools.entity_constraints import (
-    EntityConstraintsProblem,
-    EntityConstraintsSolution,
-)
 from discrete_optimization.generic_tasks_tools.enums import MinOrMax, StartOrEnd
 from discrete_optimization.generic_tasks_tools.exclusions import (
     ExclusionProblem,
@@ -54,6 +50,10 @@ from discrete_optimization.generic_tasks_tools.precedence_scheduling import (
 from discrete_optimization.generic_tasks_tools.resource_blocking import (
     ResourceBlockingProblem,
     ResourceBlockingSolution,
+)
+from discrete_optimization.generic_tasks_tools.routing import (
+    RoutingProblem,
+    RoutingSolution,
 )
 from discrete_optimization.generic_tasks_tools.skill import (
     NonSkillCumulativeResource,
@@ -87,7 +87,8 @@ AnyResource = NonRenewableResource | Resource
 class GenericSchedulingProblem(
     # ResourceBlockingProblem[Task, CumulativeResource, UnaryResource],
     # CalendarPreemptiveProblem[Task, CumulativeResource, UnaryResource],
-    EntityConstraintsProblem[Task],
+    # EntityConstraintsProblem[Task],
+    RoutingProblem[Task],
     BatchingProblem[Task],
     ResourceBlockingProblem[Task, CumulativeResource, UnaryResource],
     ExclusionProblem[Task, ExclusionResource],
@@ -573,6 +574,7 @@ class GenericSchedulingProblem(
         exclusion_resources: bool = True,
         entity_constraints: bool = True,
         batching: bool = True,
+        routing: bool = True,
     ) -> bool:
         """Partial checks on solution.
 
@@ -666,6 +668,7 @@ class GenericSchedulingProblem(
                     and variable.check_batch_capacity()
                 )
             )
+            and (not routing or variable.check_transition_time_constraint())
         )
 
     @abstractmethod
@@ -710,7 +713,8 @@ class GenericSchedulingProblem(
 
 
 class GenericSchedulingSolution(
-    EntityConstraintsSolution[Task],
+    # EntityConstraintsSolution[Task],
+    RoutingSolution[Task],
     BatchingSolution[Task],
     ResourceBlockingSolution[Task, CumulativeResource, UnaryResource],
     # CalendarPreemptiveSolution[Task, CumulativeResource, UnaryResource],

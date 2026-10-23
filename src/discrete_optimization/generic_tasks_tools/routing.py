@@ -40,7 +40,9 @@ class RoutingEntity(Generic[Task, AttributeEntities, CumulDimensions]):
     possible_attributes: dict[SchedulingEntity[Task], set[AttributeEntities]]
     transition_times: np.ndarray
     cumul_matrix: dict[CumulDimensions, np.ndarray]
+    cumul_bounds: dict[CumulDimensions, tuple[int | None, int | None]] = None
     has_to_be_visited: dict[SchedulingEntity[Task], bool] = None
+    has_to_be_visited_if_present: dict[SchedulingEntity[Task], bool] = None
     first_entity: SchedulingEntity[Task] = field(default=None)
     last_entity: SchedulingEntity[Task] = field(default=None)
     graph: dict[SchedulingEntity[Task], set[SchedulingEntity[Task]]] = field(
@@ -96,6 +98,15 @@ class RoutingProblem(EntityConstraintsProblem[Task]):
     @optional_override
     def get_ordered_routing_entities(self) -> list[OrderedRoutingEntity]:
         return []
+
+    def get_bounds_cumul_dimension(
+        self, routing_entity: RoutingEntity, cumul_dimension: CumulDimensions
+    ) -> tuple[int | None, int | None]:
+        if routing_entity.cumul_bounds is None:
+            return None, None
+        if cumul_dimension not in routing_entity.cumul_bounds:
+            return None, None
+        return routing_entity.cumul_bounds[cumul_dimension]
 
     def get_routing_entity(self, entity: SchedulingEntity) -> RoutingEntity:
         if self.from_entity_to_ordered_routing_entity is None:

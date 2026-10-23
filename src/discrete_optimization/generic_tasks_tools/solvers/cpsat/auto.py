@@ -190,6 +190,7 @@ class GenericSchedulingAutoCpSatSolver(
     """
     Either creating present var for all task (not only for optional tasks)
     """
+    logging_objectives: bool = False
 
     # cpsat variables
     start_or_end_variables: dict[tuple[Task, StartOrEnd], LinearExprT]
@@ -1267,6 +1268,11 @@ class GenericSchedulingAutoCpSatSolver(
             the task variables for the intermediate solution
 
         """
+        if self.logging_objectives:
+            for obj in self.dict_objective_expr:
+                logger.info(
+                    f"Objective {obj}: {cpsolvercb.value(self.dict_objective_expr[obj])}"
+                )
         task_variables = {}
         for task in self.problem.tasks_list:
             if task in self.task_is_scheduled and not cpsolvercb.Value(

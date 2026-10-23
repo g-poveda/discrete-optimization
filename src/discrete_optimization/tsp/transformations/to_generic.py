@@ -3,7 +3,7 @@
 #  LICENSE file in the root directory of this source tree.
 
 """
-Transformation from Knapsack to GenSchedulingImpl
+Transformation from Tsp to GenSchedulingImpl
 """
 
 from typing import Iterable
@@ -77,6 +77,7 @@ class TspToGenericSchedulingTransformation(
                 graph[ent] = {
                     entity_map[int(ind)] for ind in closest if int(ind) in entity_map
                 }
+                graph[ent].add(task_entities[1])
                 for ind in closest:
                     if int(ind) not in entity_map:
                         if int(ind) == source_problem.start_index:

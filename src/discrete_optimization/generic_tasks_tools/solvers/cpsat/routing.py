@@ -1,6 +1,7 @@
 #  Copyright (c) 2026 AIRBUS and its affiliates.
 #  This source code is licensed under the MIT license found in the
 #  LICENSE file in the root directory of this source tree.
+from collections import defaultdict
 from typing import Generic
 
 from ortools.sat.python.cp_model import Domain, IntVar
@@ -172,12 +173,18 @@ class RoutingCpSatProblem(EntityConstraintsCpSatSolver[Task], Generic[Task]):
     def add_constraint_routing(
         self, index_routing_entity: int, routing_entity: RoutingEntity
     ):
+        incoming = defaultdict(list)
+        outcoming = defaultdict(list)
         for node_from, node_to, next_from_to in self.next_variable_routing[
             index_routing_entity
         ]:
             if node_from == "depot":
                 continue
             if node_to == "depot":
+                continue
+            if node_to == node_from:
+                is_present_from = self.get_entity_is_active_variable(node_from)
+                self.cp_model.add(is_present_from == ~next_from_to)
                 continue
             attributes_from = list(
                 self.attribute_variable_routing[index_routing_entity][node_from]
@@ -210,7 +217,7 @@ class RoutingCpSatProblem(EntityConstraintsCpSatSolver[Task], Generic[Task]):
                         attribute_to=attr_to,
                     )
                     self.cp_model.add(
-                        time_node_to >= time_node_from + travel_time
+                        time_node_to >= time_node_from + int(travel_time)
                     ).only_enforce_if(
                         is_active_from,
                         is_active_to,
@@ -218,6 +225,11 @@ class RoutingCpSatProblem(EntityConstraintsCpSatSolver[Task], Generic[Task]):
                         var_attr_to,
                         next_from_to,
                     )
+        for node in incoming:
+            pass
+            # self.cp_model.add_at_most_one(incoming[node])
+            # self.cp_model.add_at_most_one(outcoming[node])
+            # self.cp_model.add(sum(incoming[node])==1).only_enforce_if(self.get_entity_is_active_variable(node))
 
     def add_constraint_ordered_routing(
         self, index_routing_entity: int, routing_entity: OrderedRoutingEntity
@@ -328,6 +340,19 @@ class RoutingCpSatProblem(EntityConstraintsCpSatSolver[Task], Generic[Task]):
                             var_attr_to,
                             next_from_to,
                         )
+            bounds = self.problem.get_bounds_cumul_dimension(
+                routing_entity, cumul_dimension=c
+            )
+            if bounds[0] or bounds[1]:
+                val = sum(
+                    self.cumul_addition_variable_routing[index_routing_entity][
+                        c
+                    ].values()
+                )
+                if bounds[0]:
+                    self.cp_model.add(val >= bounds[0])
+                if bounds[1]:
+                    self.cp_model.add(val <= bounds[1])
 
     def cumul_addition_ordered_routing(
         self, index_routing_entity: int, routing_entity: OrderedRoutingEntity

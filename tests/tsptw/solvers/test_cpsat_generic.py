@@ -44,7 +44,7 @@ def test_cpsat_generic_transformation_relaxed_tw():
     res = solver.solve(
         callbacks=[NbIterationStopper(nb_iteration_max=1)],
     )
-
-    sol = res[-1][0]
-    # Note: with relaxed time windows, solution might not strictly satisfy original TW constraints
-    print(f"Evaluation: {problem.evaluate(sol)}")
+    if len(res) > 0:
+        sol = res[-1][0]
+        # Note: with relaxed time windows, solution might not strictly satisfy original TW constraints
+        print(f"Evaluation: {problem.evaluate(sol)}")

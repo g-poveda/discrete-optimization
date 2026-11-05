@@ -224,6 +224,8 @@ class CpmpySolver(CpSolver):
                     else 1
                 )
             )
+        if "solver_name" in solver_kwargs:
+            solver_kwargs.pop("solver_name")
         # warmstart?
         if self.hints:
             cpm_vars, values = tuple(zip(*self.hints.items()))

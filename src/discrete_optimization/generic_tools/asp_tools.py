@@ -13,7 +13,7 @@ from discrete_optimization.generic_tools.callbacks.callback import (
     CallbackList,
 )
 from discrete_optimization.generic_tools.do_problem import Solution
-from discrete_optimization.generic_tools.do_solver import SolverDO
+from discrete_optimization.generic_tools.do_solver import SolverDO, StatusSolver
 from discrete_optimization.generic_tools.exceptions import SolveEarlyStop
 from discrete_optimization.generic_tools.result_storage.result_storage import (
     ResultStorage,
@@ -88,6 +88,10 @@ class AspClingoSolver(SolverDO):
                 raise self.early_stopping_exception
         res = asp_callback.res
         callbacks_list.on_solve_end(res=res, solver=self)
+        if len(res) > 0:
+            self.status_solver = StatusSolver.SATISFIED
+        if asp_callback.optimality_proven:
+            self.status_solver = StatusSolver.OPTIMAL
         return res
 
 
@@ -104,9 +108,11 @@ class AspCallback:
         self.callback = callback
         self.res = do_solver.create_result_storage()
         self.nb_solutions = 0
+        self.optimality_proven = False
 
     def on_model(self, model: clingo.Model) -> bool:
         # debug: store model
+        # logger.info(f"Found a model")
         if self.dump_model_in_folders:
             folder = os.path.join(
                 cur_folder, f"output-folder/model_{self.nb_solutions}"
@@ -117,8 +123,15 @@ class AspCallback:
             with open(os.path.join(folder, "model.txt"), "w") as model_file:
                 model_file.write(str(model))
         # translate into do solution
+        # logger.info(f"Retrieving")
         sol = self.do_solver.retrieve_solution(model=model)
-        fit = self.do_solver.aggreg_from_sol(sol)
+        logger.info(f"Optimality proven {model.optimality_proven}")
+        # logger.info(f"Computing fit")
+        if sol is None:
+            fit = None
+        else:
+            fit = self.do_solver.aggreg_from_sol(sol)
+        logger.info(f"Adding to res")
         self.res.append((sol, fit))
         self.nb_solutions += 1
         # end of step callback: stopping?
@@ -136,6 +149,7 @@ class AspCallback:
                 )
         # optimality?
         stopping = stopping or model.optimality_proven
-
+        if model.optimality_proven:
+            self.optimality_proven = model.optimality_proven
         # return go-on status (=not stopping)
         return not stopping

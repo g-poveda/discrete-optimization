@@ -1,11 +1,19 @@
 #  Copyright (c) 2026 AIRBUS and its affiliates.
 #  This source code is licensed under the MIT license found in the
 #  LICENSE file in the root directory of this source tree.
+import pytest
+
 from discrete_optimization.generic_tasks_tools.generic_scheduling_impl import (
     GenericSchedulingImplSolution,
 )
+from discrete_optimization.generic_tasks_tools.solvers.cp.cpmpy.auto_impl import (
+    GenericSchedulingAutoCpmpyImplSolver,
+)
 from discrete_optimization.generic_tasks_tools.solvers.cp.cpsat.auto_impl import (
     GenericSchedulingAutoCpSatImplSolver,
+)
+from discrete_optimization.generic_tasks_tools.solvers.cp.optal.auto_impl import (
+    GenericSchedulingAutoOptalImplSolver,
 )
 from discrete_optimization.generic_tools.callbacks.early_stoppers import (
     NbIterationStopper,
@@ -24,11 +32,12 @@ def test_transfo_to_from_generic_scheduling():
     problem = parse_file(file)
     transfo = RcpspToGenericSchedulingTransformation()
     generic_problem = transfo.transform_problem(source_problem=problem)
-    solver = GenericSchedulingAutoCpSatImplSolver(problem=generic_problem)
+
     parameters_cp = ParametersCp.default()
+    kwargs = dict(parameters_cp=parameters_cp)
+    solver = GenericSchedulingAutoCpSatImplSolver(problem=generic_problem)
     generic_solution: GenericSchedulingImplSolution = solver.solve(
-        parameters_cp=parameters_cp,
-        callbacks=[NbIterationStopper(nb_iteration_max=1)],
+        callbacks=[NbIterationStopper(nb_iteration_max=1)], **kwargs
     ).get_best_solution()
     solution = transfo.back_transform_solution(generic_solution, source_problem=problem)
     problem.satisfy(solution)
@@ -44,3 +53,29 @@ def test_transfo_to_from_generic_scheduling():
     ).get_best_solution()
 
     assert generic_solution_2.raw_sol == generic_solution.raw_sol
+
+
+@pytest.mark.parametrize("solver_name", ["cpsat", "cpmpy", "optal"])
+def test_solve_via_generic(solver_name):
+    files_available = get_data_available()
+    file = [f for f in files_available if "j301_1.sm" in f][0]
+    problem = parse_file(file)
+    transfo = RcpspToGenericSchedulingTransformation()
+    generic_problem = transfo.transform_problem(source_problem=problem)
+    parameters_cp = ParametersCp.default()
+    kwargs = dict(parameters_cp=parameters_cp, time_limit=10)
+    solver = None
+    match solver_name:
+        case "cpsat":
+            solver = GenericSchedulingAutoCpSatImplSolver(generic_problem)
+        case "cpmpy":
+            solver = GenericSchedulingAutoCpmpyImplSolver(generic_problem)
+        case "optal":
+            solver = GenericSchedulingAutoOptalImplSolver(generic_problem)
+
+    generic_solution: GenericSchedulingImplSolution = solver.solve(
+        **kwargs
+    ).get_best_solution()
+    print(generic_solution.raw_sol)
+    solution = transfo.back_transform_solution(generic_solution, source_problem=problem)
+    assert problem.satisfy(solution)

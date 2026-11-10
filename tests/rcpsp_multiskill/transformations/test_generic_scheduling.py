@@ -2,18 +2,24 @@
 #  This source code is licensed under the MIT license found in the
 #  LICENSE file in the root directory of this source tree.
 import numpy as np
+import pytest
 
 from discrete_optimization.generic_tasks_tools.generic_scheduling_impl import (
     GenericSchedulingImplSolution,
 )
+from discrete_optimization.generic_tasks_tools.solvers.cp.cpmpy.auto_impl import (
+    GenericSchedulingAutoCpmpyImplSolver,
+)
 from discrete_optimization.generic_tasks_tools.solvers.cp.cpsat.auto_impl import (
     GenericSchedulingAutoCpSatImplSolver,
+)
+from discrete_optimization.generic_tasks_tools.solvers.cp.optal.auto_impl import (
+    GenericSchedulingAutoOptalImplSolver,
 )
 from discrete_optimization.generic_tools.callbacks.early_stoppers import (
     NbIterationStopper,
 )
 from discrete_optimization.generic_tools.cp_tools import ParametersCp
-from discrete_optimization.rcpsp.parser import get_data_available, parse_file
 from discrete_optimization.rcpsp_multiskill.parser_imopse import (
     get_data_available,
     parse_file,
@@ -55,3 +61,33 @@ def test_transfo_to_from_generic_scheduling():
     ).get_best_solution()
 
     assert generic_solution_2.raw_sol == generic_solution.raw_sol
+
+
+@pytest.mark.parametrize(
+    "solver_name",
+    [  # "cpsat",
+        # "cpmpy",
+        "optal"
+    ],
+)
+def test_solve_via_generic(solver_name):
+    file = [f for f in get_data_available() if "100_5_64_9.def" in f][0]
+    problem, _ = parse_file(file, max_horizon=1000)
+    transfo = MultiskillRcpspToGenericSchedulingTransformation()
+    generic_problem = transfo.transform_problem(source_problem=problem)
+    parameters_cp = ParametersCp.default()
+    kwargs = dict(parameters_cp=parameters_cp, time_limit=10)
+    solver = None
+    match solver_name:
+        case "cpsat":
+            solver = GenericSchedulingAutoCpSatImplSolver(generic_problem)
+        case "cpmpy":
+            solver = GenericSchedulingAutoCpmpyImplSolver(generic_problem)
+        case "optal":
+            solver = GenericSchedulingAutoOptalImplSolver(generic_problem)
+
+    generic_solution: GenericSchedulingImplSolution = solver.solve(
+        **kwargs
+    ).get_best_solution()
+    solution = transfo.back_transform_solution(generic_solution, source_problem=problem)
+    assert problem.satisfy(solution)

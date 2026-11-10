@@ -7,8 +7,12 @@ import logging
 from typing import Generic, Optional
 
 from discrete_optimization.generic_tasks_tools.allocation import UnaryResource
-from discrete_optimization.generic_tasks_tools.enums import StartOrEnd
+from discrete_optimization.generic_tasks_tools.enums import AbsentValue, StartOrEnd
 from discrete_optimization.generic_tasks_tools.exclusions import ExclusionResource
+from discrete_optimization.generic_tasks_tools.generic_scheduling_utils import (
+    RawSolution,
+    TaskVariable,
+)
 from discrete_optimization.generic_tasks_tools.non_renewable_resource import (
     NonRenewableResource,
 )
@@ -30,6 +34,7 @@ from discrete_optimization.generic_tasks_tools.solvers.cp.base.typing import (
 from discrete_optimization.generic_tasks_tools.solvers.cp.optal.generic_scheduling import (
     GenericSchedulingOptalSolver,
 )
+from discrete_optimization.generic_tasks_tools.solvers.cp.utils import is_a_trivial_zero
 from discrete_optimization.generic_tools.do_problem import (
     Solution,
 )
@@ -226,14 +231,133 @@ class GenericSchedulingAutoOptalSolver(
     def get_task_mode_interval(self, task: Task, mode: int) -> cp.IntervalVar:
         return self.modes_intervals[task][mode]
 
-    def retrieve_solution(self, result: cp.SolveResult) -> Solution:
+    def retrieve_solution(self, result: "cp.Solution") -> Solution:
         # construct generic tasks variables
         def solution_value_fn(var):
-            return result.solution.get_value(var)
+            if isinstance(var, (cp.IntVar, cp.BoolVar, cp.IntVar)):
+                return result.get_value(var)
+            return result.get_value(var)
 
-        raw_sol = self.retrieve_tasks_variables(solution_value_fn=solution_value_fn)
+        raw_sol = self.retrieve_tasks_variables_optal(result=result)
         # convert to specific solution type
         return self.convert_task_variables_to_solution(raw_sol=raw_sol)
+
+    def retrieve_tasks_variables_optal(
+        self, result: "cp.Solution"
+    ) -> RawSolution[Task, UnaryResource, Skill]:
+        """Construct each task variable from the cp solver internal solution.
+
+        It will be called each time the cp solver find a new solution.
+        At that point, value of internal variables are accessible via `solution_value_fn(VARIABLE_NAME)`.
+
+        This method will be typically called in `self.retrieve_solution()` or equivalent
+        before `self.convert_task_variables_to_solution()`.
+        Override it if you need additional information to be stored
+        (either in res.metadata or res.task_variables[task].info).
+
+        Args:
+            solution_value_fn: callable returning the solution value for each cp variable given as argument
+
+        Returns:
+            the task variables for the intermediate solution
+
+        """
+        task_variables = {}
+        for task in self.problem.tasks_list:
+            is_present = result.is_present(self.get_task_interval(task))
+            if not is_present:
+                task_variables[task] = TaskVariable(
+                    start=AbsentValue.ABSENT,
+                    end=AbsentValue.ABSENT,
+                    mode=AbsentValue.ABSENT,
+                    allocated={},
+                    is_present=False,
+                )
+            else:
+                start = result.get_start(self.get_task_interval(task))
+                end = result.get_end(self.get_task_interval(task))
+                modes = self.problem.get_task_modes(task)
+                mode = AbsentValue.ABSENT
+                if len(modes) == 1:
+                    mode = next(iter(modes))
+                else:
+                    for mode in modes:
+                        if result.is_present(
+                            self.get_task_mode_interval(task=task, mode=mode)
+                        ):
+                            break
+
+                def get_skill_used(
+                    task: Task, unary_resource: UnaryResource
+                ) -> set[Skill]:
+                    try:
+                        skill_variables = self.skill_variables[task][unary_resource]
+                    except KeyError:
+                        return set()
+                    else:
+                        skills = set()
+                        ur_allocated = result.is_present(
+                            self.allocation_intervals[task][unary_resource]
+                        )
+                        for skill, skill_var in skill_variables.items():
+                            if isinstance(skill_var, cp.BoolExpr):
+                                # it is the case where the use of the skill is directly
+                                # defined by the fact that the task is allocated to the
+                                if ur_allocated:
+                                    skills.add(skill)
+                            else:
+                                skill_used = result.get_value(
+                                    self.skill_variables[task][unary_resource][skill]
+                                )
+                                if skill_used > 0:
+                                    skills.add(skill)
+                        return skills
+
+                allocated = {
+                    unary_resource: get_skill_used(
+                        task=task, unary_resource=unary_resource
+                    )
+                    for unary_resource in self.allocation_intervals[task]
+                    if (
+                        not (
+                            is_a_trivial_zero(
+                                (
+                                    is_allocated_var := result.is_present(
+                                        self.get_task_unary_resource_interval(
+                                            task=task, unary_resource=unary_resource
+                                        )
+                                    )
+                                )
+                            )
+                        )
+                        and is_allocated_var
+                    )
+                }
+                task_variables[task] = TaskVariable(
+                    start=start,
+                    end=end,
+                    mode=mode,
+                    allocated=allocated,
+                    is_present=True,
+                )
+        metadata = {}
+        # Stores other decision
+        for c in (
+            self.problem.get_flexible_gap_blocking_constraints()
+            + self.problem.get_span_blocking_constraints()
+        ):
+            if c.has_a_choice():
+                tag = c.metadata.name_choice
+                choice = None
+                for val in self._choices_blocking_constraint_vars[tag]:
+                    if result.get_value(
+                        self._choices_blocking_constraint_vars[tag][val]
+                    ):
+                        choice = val
+                        break
+                metadata[tag] = choice
+
+        return RawSolution(task_variables=task_variables, metadata=metadata)
 
 
 class SinglemodeGenericSchedulingAutoOptalSolver(
